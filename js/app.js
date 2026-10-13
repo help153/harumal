@@ -262,7 +262,7 @@ function listBox(kind) {
       return el("li", null,
         el("div", { class: "w tl" }, it.w || it.t || it.full, isJa() && it.r ? el("span", { class: "rd" }, " ", it.r) : null),
         el("div", { class: "m" }, it.m || it.ko),
-        el("div", { class: "side" }, dots(p ? p.b : 0),
+        el("div", { class: "side" }, el("div", { class: "row", style: "gap:8px" }, dots(p ? p.b : 0), spk(it.w || it.t || it.full)),
           it.mine ? el("span", { class: "row" }, el("span", { class: "mine" }, "내 항목"), el("button", { class: "link", onclick: () => removeCustom(kind, it.id) }, "삭제")) : null));
     }))));
 }
@@ -350,17 +350,19 @@ function renderVocab() {
   const choiceBtns = st.choices.map((c, i) => {
     let cls = "choice";
     if (st.chosen) { if (c.id === it.id) cls += " right"; else if (c.id === st.chosen) cls += " wrong"; }
-    return el("button", { class: cls, disabled: st.chosen ? true : null, onclick: () => answerVocab(c.id) },
+    const btn = el("button", { class: cls, disabled: st.chosen ? true : null, onclick: () => answerVocab(c.id) },
       el("span", { class: "k" }, i + 1),
       st.dir === 0 ? el("span", null, c.m) : el("span", { class: "tl", style: "font-size:18px" }, c.w),
       st.dir === 1 && ja && (P.showReading || st.chosen) && c.r ? el("span", { class: "rd" }, c.r) : null);
+    // 단어가 보기로 나올 때는 보기마다 발음을 들어 볼 수 있게 한다 (버튼 안에 버튼을 넣을 수 없어서 옆에 둔다)
+    return st.dir === 1 ? el("div", { class: "choice-wrap" }, btn, spk(c.w)) : btn;
   });
   let result = null;
   if (st.chosen) {
     const ok = st.chosen === it.id;
     result = el("div", { class: "result " + (ok ? "ok" : "no") },
       el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
-      el("div", null, el("span", { class: "tl", style: "font-size:18px" }, it.w), ja && it.r ? el("span", { class: "rd" }, "  ", it.r) : null, " — ", it.m),
+      el("div", { class: "example" }, spk(it.w), el("div", null, el("span", { class: "tl", style: "font-size:18px" }, it.w), ja && it.r ? el("span", { class: "rd" }, "  ", it.r) : null, " — ", it.m)),
       it.ex ? el("div", { class: "example" }, spk(it.ex), el("div", null,
         el("div", { class: "tl", style: "font-size:17px" }, it.ex),
         ja && it.exr ? el("div", { class: "rd" }, it.exr) : null,
@@ -383,6 +385,7 @@ function answerVocab(id) {
   if (ok) s.right++;
   grade("vocab", it.id, ok);
   renderPanel();
+  if (P.autoReveal) sp.speak(it.w, P.lang);
   $("#next-btn")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 function nextVocab() { const s = R.sess[P.lang].vocab; s.i++; s.st = null; R.mic?.abort(); renderPanel(); }
@@ -399,7 +402,7 @@ function renderExpr() {
     el("div", { class: "mid" }, it.ko),
     el("div", { class: "small muted" }, `${langKo()}로 어떻게 말할까요? 먼저 소리 내어 말해 보고 확인하세요.`));
   const back = !s.st.open
-    ? el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { s.st.open = true; renderPanel(); } }, "정답 보기"))
+    ? el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { s.st.open = true; renderPanel(); if (P.autoReveal) sp.speak(it.t, P.lang); } }, "정답 보기"))
     : el("div", { class: "flash" },
         el("div", { class: "row", style: "gap:12px" }, el("div", { class: "big tl", style: "font-size:clamp(24px,6.5vw,32px)" }, it.t), spk(it.t)),
         isJa() && it.r ? el("div", { class: "rd" }, it.r) : null,
@@ -458,7 +461,7 @@ function checkSent() {
   if (st.checked) s.right++;
   grade("sent", it.id, st.checked);
   renderPanel();
-  if (st.checked) sp.speak(it.full, P.lang);
+  if (P.autoReveal) sp.speak(it.full, P.lang);
 }
 
 /* ───────── AI 회화 ───────── */
@@ -600,7 +603,7 @@ function renderChat() {
         el("button", { class: "btn ghost sm", onclick: () => { c.ctl?.abort(); R.mic?.abort(); sp.stopSpeaking(); R.chat[lang] = null; renderPanel(); } }, "끝내기"))),
     msgs,
     c.hints.length && !c.busy ? el("div", { class: "hints" }, el("span", { class: "small muted", style: "align-self:center" }, "이렇게 말해 볼까요?"),
-      c.hints.map((h) => el("button", { class: "tl", onclick: () => { c.draft = h; renderPanel(); const t = $("#chat-input"); t?.focus(); } }, h))) : null,
+      c.hints.map((h) => el("span", { class: "hint" }, el("button", { class: "tl", onclick: () => { c.draft = h; renderPanel(); const t = $("#chat-input"); t?.focus(); } }, h), spk(h)))) : null,
     c.micErr ? el("div", { class: "status err" }, c.micErr) : null,
     el("div", { class: "composer" },
       sp.canListen() ? el("button", { class: "mic-round" + (c.listening ? " on" : ""), type: "button", "aria-label": c.listening ? "듣기 멈추기" : "말해서 입력", disabled: c.busy || null, onclick: chatMic }, svg(c.listening ? ICON.stop : ICON.mic)) : null,
@@ -675,6 +678,7 @@ function renderSettings() {
     toggle("p-reading", "일본어 읽는 법(후리가나) 표시", P.showReading, (v) => { P.showReading = v; persist(); }),
     toggle("p-autosend", "회화에서 말하면 바로 보내기", P.autoSend, (v) => { P.autoSend = v; persist(); }),
     toggle("p-autospeak", "AI 답변 자동으로 읽어 주기", P.autoSpeak, (v) => { P.autoSpeak = v; persist(); }),
+    toggle("p-autoreveal", "단어·표현·문장 정답이 나오면 자동으로 읽어 주기", P.autoReveal, (v) => { P.autoReveal = v; persist(); }),
     toggle("p-slow", "천천히 읽기", P.slow, (v) => { P.slow = v; persist(); sp.configure({ ...K, slow: v }); sp.clearAudioCache(); }),
     el("div", { class: "row" },
       el("button", { class: "btn sm ghost", onclick: () => {

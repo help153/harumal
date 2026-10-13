@@ -9,7 +9,7 @@ export function emptyState() {
     prog: { ja: {}, en: {} },
     custom: { ja: { vocab: [], expr: [], sent: [] }, en: { vocab: [], expr: [], sent: [] } },
     stats: { days: {} },
-    prefs: { pv: 2, lang: "ja", tab: "vocab", showReading: true, autoSend: true, autoSpeak: true, slow: false },
+    prefs: { pv: 2, lang: "ja", tab: "vocab", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, slow: false },
   };
 }
 

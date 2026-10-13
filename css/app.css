@@ -114,6 +114,9 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .choice.right { border-color: var(--good); background: var(--good-soft); }
 .choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
 .choice:disabled { cursor: default; }
+.choice-wrap { position: relative; display: flex; }
+.choice-wrap .choice { flex: 1; padding-right: 54px; }
+.choice-wrap .icon-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
 
 .result { border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .result.ok { background: var(--good-soft); }
@@ -201,7 +204,10 @@ input[type=text] { flex: 1 1 180px; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 .hints { display: flex; flex-wrap: wrap; gap: 6px; }
-.hints button { border: 1px dashed var(--accent); background: transparent; color: var(--accent); border-radius: 99px; padding: 6px 12px; font-size: 15px; text-align: left; }
+.hint { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.hint .icon-btn { width: 32px; height: 32px; }
+.hint .icon-btn .ico svg { width: 15px; height: 15px; }
+.hints button.tl { border: 1px dashed var(--accent); background: transparent; color: var(--accent); border-radius: 99px; padding: 6px 12px; font-size: 15px; text-align: left; }
 .composer { display: flex; gap: 8px; align-items: flex-end; }
 .composer textarea { flex: 1; resize: none; min-height: 46px; max-height: 140px; }
 .mic-round { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
