@@ -9,7 +9,7 @@ export function emptyState() {
     prog: { ja: {}, en: {} },
     custom: { ja: { vocab: [], expr: [], sent: [] }, en: { vocab: [], expr: [], sent: [] } },
     stats: { days: {} },
-    prefs: { lang: "ja", tab: "vocab", showReading: true, autoSend: true, autoSpeak: false, slow: false },
+    prefs: { pv: 2, lang: "ja", tab: "vocab", showReading: true, autoSend: true, autoSpeak: true, slow: false },
   };
 }
 
@@ -26,6 +26,11 @@ export function normalize(raw) {
   }
   if (raw.stats?.days && typeof raw.stats.days === "object") s.stats.days = raw.stats.days;
   if (raw.prefs && typeof raw.prefs === "object") Object.assign(s.prefs, raw.prefs);
+  // v2: AI 답변 자동 읽기를 기본으로 켠다 (이전 버전은 꺼진 채로 저장돼 있었음)
+  if (raw.prefs && !(raw.prefs.pv >= 2)) {
+    s.prefs.autoSpeak = true;
+    s.prefs.pv = 2;
+  }
   return s;
 }
 

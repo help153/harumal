@@ -98,6 +98,8 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
 .btn.ghost:hover { background: var(--sunk); }
 .btn.sm { padding: 7px 13px; font-size: 13.5px; border-radius: 9px; min-height: 36px; }
+.btn.ghost.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.btn .ico svg { width: 16px; height: 16px; }
 .link { border: 0; background: none; padding: 4px 0; color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .link.done { color: var(--muted); text-decoration: none; }
 .link.danger { color: var(--bad); }

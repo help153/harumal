@@ -594,7 +594,10 @@ function renderChat() {
   wrap.append(el("div", { class: "card chat" },
     el("div", { class: "row between" },
       el("div", { class: "row" }, el("span", { class: "tag" }, c.sc.t), el("span", { class: "small muted" }, LEVELS[c.lv].t)),
-      el("button", { class: "btn ghost sm", onclick: () => { c.ctl?.abort(); R.mic?.abort(); R.chat[lang] = null; renderPanel(); } }, "대화 끝내기")),
+      el("div", { class: "row" },
+        sp.canSpeak() ? el("button", { class: "btn ghost sm" + (P.autoSpeak ? " on" : ""), "aria-pressed": String(P.autoSpeak), title: "AI 답변 자동으로 읽어 주기",
+          onclick: () => { P.autoSpeak = !P.autoSpeak; persist(); if (!P.autoSpeak) sp.stopSpeaking(); renderPanel(); } }, svg(ICON.speaker), P.autoSpeak ? "읽어 주기 켬" : "읽어 주기 꺼짐") : null,
+        el("button", { class: "btn ghost sm", onclick: () => { c.ctl?.abort(); R.mic?.abort(); sp.stopSpeaking(); R.chat[lang] = null; renderPanel(); } }, "끝내기"))),
     msgs,
     c.hints.length && !c.busy ? el("div", { class: "hints" }, el("span", { class: "small muted", style: "align-self:center" }, "이렇게 말해 볼까요?"),
       c.hints.map((h) => el("button", { class: "tl", onclick: () => { c.draft = h; renderPanel(); const t = $("#chat-input"); t?.focus(); } }, h))) : null,
@@ -672,7 +675,19 @@ function renderSettings() {
     toggle("p-reading", "일본어 읽는 법(후리가나) 표시", P.showReading, (v) => { P.showReading = v; persist(); }),
     toggle("p-autosend", "회화에서 말하면 바로 보내기", P.autoSend, (v) => { P.autoSend = v; persist(); }),
     toggle("p-autospeak", "AI 답변 자동으로 읽어 주기", P.autoSpeak, (v) => { P.autoSpeak = v; persist(); }),
-    toggle("p-slow", "천천히 읽기", P.slow, (v) => { P.slow = v; persist(); sp.configure({ ...K, slow: v }); sp.clearAudioCache(); })));
+    toggle("p-slow", "천천히 읽기", P.slow, (v) => { P.slow = v; persist(); sp.configure({ ...K, slow: v }); sp.clearAudioCache(); }),
+    el("div", { class: "row" },
+      el("button", { class: "btn sm ghost", onclick: () => {
+        const sample = P.lang === "ja" ? "こんにちは。今日も一緒に練習しましょう。" : "Hi there! Let's practice together today.";
+        sp.speak(sample, P.lang);
+        const name = sp.browserVoiceName(P.lang);
+        R.msg.voice = K.azureKey ? { text: "Azure 음성으로 읽었어요. 안 들리면 무음 모드와 볼륨을 확인해 주세요." }
+          : name === null ? { text: "이 브라우저는 읽어 주기를 지원하지 않아요.", err: true }
+          : name ? { text: `이 기기의 ${langKo()} 음성(${name})으로 읽었어요. 안 들리면 무음 모드와 미디어 볼륨을 확인해 주세요.` }
+          : { text: `이 기기에 ${langKo()} 음성이 없을 수 있어요. 폰 설정 → 텍스트 음성 변환(TTS)에서 ${langKo()} 음성을 내려받아 주세요.`, err: true };
+        renderPanel();
+      } }, `${langKo()} 읽어 주기 테스트`)),
+    msgLine("voice")));
 
   const total = ["ja", "en"].reduce((n, l) => n + Object.keys(S.prog[l]).length, 0);
   const mine = ["ja", "en"].reduce((n, l) => n + S.custom[l].vocab.length + S.custom[l].expr.length + S.custom[l].sent.length, 0);

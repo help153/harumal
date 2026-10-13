@@ -70,9 +70,21 @@ function audioCtx() {
   ctx ??= new (window.AudioContext || window.webkitAudioContext)();
   return ctx;
 }
+// 아이폰 Safari는 터치 안에서 한 번 소리를 내 둬야, 나중에 AI 답변이 도착했을 때 읽어 줄 수 있다.
+let speechUnlocked = false;
+function unlockSpeech() {
+  if (speechUnlocked || !("speechSynthesis" in window)) return;
+  speechUnlocked = true;
+  try {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    speechSynthesis.speak(u);
+  } catch {}
+}
 document.addEventListener(
   "pointerdown",
   () => {
+    unlockSpeech();
     try {
       const c = audioCtx();
       if (c.state === "suspended") c.resume();
@@ -84,10 +96,28 @@ document.addEventListener(
 const audioCache = new Map(); // text+voice+rate → AudioBuffer
 let current = null;
 
-function stopAll() {
+function stopAudio() {
   try { current?.stop(); } catch {}
   current = null;
-  try { speechSynthesis.cancel(); } catch {}
+}
+
+// 기기에 설치된 음성 목록은 늦게 채워지는 경우가 많아서 바뀔 때마다 다시 읽는다.
+let voices = [];
+function loadVoices() {
+  try { voices = speechSynthesis.getVoices(); } catch {}
+}
+if ("speechSynthesis" in window) {
+  loadVoices();
+  speechSynthesis.addEventListener?.("voiceschanged", loadVoices);
+}
+function pickVoice(lang) {
+  if (!voices.length) loadVoices();
+  const loc = LOC[lang].toLowerCase();
+  const norm = (v) => v.lang.replace("_", "-").toLowerCase();
+  return voices.find((v) => norm(v) === loc && v.localService) || voices.find((v) => norm(v) === loc) || voices.find((v) => norm(v).startsWith(lang)) || null;
+}
+export function browserVoiceName(lang) {
+  return "speechSynthesis" in window ? pickVoice(lang)?.name || "" : null;
 }
 
 const escapeXml = (t) => t.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]);
@@ -123,21 +153,36 @@ async function azureAudio(text, lang) {
 }
 
 function browserSpeak(text, lang) {
-  if (!("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = LOC[lang];
-  u.rate = (lang === "ja" ? 0.9 : 0.95) * (cfg.slow ? 0.8 : 1);
-  const v = speechSynthesis.getVoices().find((v) => v.lang.replace("_", "-").toLowerCase().startsWith(lang));
-  if (v) u.voice = v;
-  speechSynthesis.speak(u);
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = LOC[lang];
+    u.rate = (lang === "ja" ? 0.9 : 0.95) * (cfg.slow ? 0.8 : 1);
+    const v = pickVoice(lang);
+    if (v) u.voice = v;
+    synth.speak(u);
+    if (synth.paused) synth.resume();
+  };
+  // Chrome은 cancel 직후 바로 speak하면 소리를 버리는 경우가 있어서 잠깐 쉬었다가 읽는다.
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    setTimeout(go, 120);
+  } else go();
 }
 
 export const canSpeak = () => hasAzure() || "speechSynthesis" in window;
 
+export function stopSpeaking() {
+  stopAudio();
+  try { speechSynthesis.cancel(); } catch {}
+}
+
 export async function speak(text, lang) {
   if (!text) return;
-  stopAll();
+  stopAudio();
   if (hasAzure()) {
+    try { speechSynthesis.cancel(); } catch {}
     try {
       const buf = await azureAudio(text, lang);
       const c = audioCtx();
@@ -287,7 +332,8 @@ export async function testVoice(lang) {
   if (!hasAzure()) throw new SpeechError("no_key", "Azure 키와 지역을 먼저 넣어 주세요.");
   audioCache.clear();
   const buf = await azureAudio(lang === "ja" ? "こんにちは。今日も一緒に練習しましょう。" : "Hi there! Let's practice together today.", lang);
-  stopAll();
+  stopAudio();
+  try { speechSynthesis.cancel(); } catch {}
   const c = audioCtx();
   if (c.state === "suspended") await c.resume();
   const src = c.createBufferSource();
