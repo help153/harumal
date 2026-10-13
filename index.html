@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루말</title>
+<meta name="description" content="나만의 일본어·영어 연습장: 단어, 일상 표현, 문장 조립, AI 회화, 발음 연습">
+<meta name="theme-color" content="#2D4890" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10151C" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하루말">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body data-lang="ja">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" id="mark" aria-hidden="true">日</div>
+      <div><h1>하루말</h1><p>나만의 일본어 · 영어 연습장</p></div>
+    </div>
+    <div class="seg" role="group" aria-label="학습 언어">
+      <button type="button" id="lang-ja" class="ja" aria-pressed="true">日本語</button>
+      <button type="button" id="lang-en" class="en" aria-pressed="false">English</button>
+    </div>
+  </header>
+  <div class="statline" id="statline"></div>
+  <main id="panel"></main>
+</div>
+<nav class="nav" id="nav" aria-label="학습 모드"></nav>
+<noscript><p style="padding:16px">이 앱은 JavaScript가 필요해요.</p></noscript>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

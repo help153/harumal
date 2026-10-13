@@ -1,0 +1,940 @@
+<title>하루말 어학실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
+<style>
+/* Layout: one narrow study column — header with language switch, tab rail, one working card per mode */
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --sunk:#F5F7F9; --ink:#17202B; --muted:#5A6576; --line:#D3D9E1;
+  --ja:#2D4890; --ja-soft:#E2E8F6; --en:#0C7560; --en-soft:#DCF0EA; --on-accent:#FFFFFF;
+  --good:#1D7F46; --good-soft:#E0F2E7; --bad:#B03A30; --bad-soft:#F8E4E1; --note:#8A5A00; --note-soft:#FBF0D9;
+  --accent:var(--ja); --accent-soft:var(--ja-soft);
+  --f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-ja:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+  --f-en:"Newsreader",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151C; --surface:#19202A; --sunk:#141A22; --ink:#E5E9EF; --muted:#9AA5B5; --line:#2B3543;
+  --ja:#93AAEA; --ja-soft:#1E2944; --en:#55C8A9; --en-soft:#123129; --on-accent:#0E141B;
+  --good:#5CC98B; --good-soft:#15301F; --bad:#F2837A; --bad-soft:#3A1D1B; --note:#E8B95A; --note-soft:#33280F;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151C; --surface:#19202A; --sunk:#141A22; --ink:#E5E9EF; --muted:#9AA5B5; --line:#2B3543;
+  --ja:#93AAEA; --ja-soft:#1E2944; --en:#55C8A9; --en-soft:#123129; --on-accent:#0E141B;
+  --good:#5CC98B; --good-soft:#15301F; --bad:#F2837A; --bad-soft:#3A1D1B; --note:#E8B95A; --note-soft:#33280F;
+  color-scheme:dark}
+body[data-lang="en"]{--accent:var(--en); --accent-soft:var(--en-soft)}
+
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--f-ui); font-size:15px; line-height:1.55; padding-inline:16px}
+.wrap{max-width:680px; margin:0 auto; padding-block:20px 56px; display:flex; flex-direction:column; gap:16px}
+button,input,textarea,select{font:inherit; color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.tl{font-family:var(--f-en)}
+body[data-lang="ja"] .tl{font-family:var(--f-ja)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* header */
+.top{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px}
+.brand{display:flex; align-items:center; gap:10px}
+.mark{width:36px; height:36px; border-radius:9px; background:var(--accent); color:var(--on-accent); display:grid; place-items:center; font-family:var(--f-ja); font-weight:700; font-size:18px; transition:background .25s}
+.brand h1{margin:0; font-size:20px; font-weight:700; letter-spacing:-.01em; line-height:1.1}
+.brand p{margin:0; font-size:12px; color:var(--muted)}
+.seg{display:inline-flex; background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:3px}
+.seg button{border:0; background:transparent; padding:6px 14px; border-radius:7px; font-weight:600; color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.seg .ja{font-family:var(--f-ja)} .seg .en{font-family:var(--f-en); font-size:16px}
+.statline{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+.statline b{color:var(--ink); font-weight:600}
+.pill{display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:2px 9px; border-radius:99px; background:var(--sunk); border:1px solid var(--line); color:var(--muted)}
+.pill i{width:7px; height:7px; border-radius:50%; background:var(--muted)}
+.pill.cloud i{background:var(--good)} .pill.err i{background:var(--bad)}
+
+/* tabs */
+.tabs{display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--line); scrollbar-width:none}
+.tabs button{flex:0 0 auto; border:0; background:none; padding:10px 14px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent)}
+
+/* cards */
+.card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px; display:flex; flex-direction:column; gap:16px; min-width:0}
+.row{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.between{justify-content:space-between}
+.counts{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+.counts b{color:var(--ink)}
+.progress{height:4px; background:var(--sunk); border-radius:4px; overflow:hidden}
+.progress span{display:block; height:100%; background:var(--accent); transition:width .3s}
+.prompt{display:flex; flex-direction:column; gap:4px; align-items:flex-start}
+.big{font-size:clamp(28px,7.5vw,40px); line-height:1.25; font-weight:500; text-wrap:balance; word-break:keep-all; overflow-wrap:anywhere}
+.mid{font-size:clamp(20px,5vw,24px); line-height:1.4; text-wrap:balance; word-break:keep-all; overflow-wrap:anywhere}
+.rd{font-family:var(--f-ja); color:var(--muted); font-size:14px}
+.tag{font-size:12px; font-weight:600; padding:2px 8px; border-radius:6px; background:var(--accent-soft); color:var(--accent)}
+.dots{display:inline-flex; gap:3px; vertical-align:middle}
+.dots i{width:6px; height:6px; border-radius:50%; background:var(--line)}
+.dots i.on{background:var(--accent)}
+
+.btn{border:1px solid transparent; background:var(--accent); color:var(--on-accent); font-weight:600; padding:10px 18px; border-radius:10px; transition:filter .15s}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45; cursor:not-allowed; filter:none}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line)}
+.btn.ghost:hover{background:var(--sunk)}
+.btn.sm{padding:6px 12px; font-size:13px; border-radius:8px}
+.link{border:0; background:none; padding:0; color:var(--accent); font-size:13px; font-weight:600; text-decoration:underline; text-underline-offset:3px}
+.icon-btn{border:1px solid var(--line); background:var(--surface); width:34px; height:34px; border-radius:50%; display:inline-grid; place-items:center; color:var(--accent); flex:0 0 auto}
+.icon-btn:hover{background:var(--accent-soft)}
+.icon-btn svg{width:17px; height:17px}
+
+.choices{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+@media (max-width:440px){.choices{grid-template-columns:1fr}}
+.choice{text-align:left; border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:12px 14px; min-height:56px; display:flex; flex-direction:column; justify-content:center; gap:2px; transition:border-color .15s, background .15s}
+.choice:hover:not(:disabled){border-color:var(--accent); background:var(--accent-soft)}
+.choice .k{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums}
+.choice.right{border-color:var(--good); background:var(--good-soft)}
+.choice.wrong{border-color:var(--bad); background:var(--bad-soft)}
+.choice:disabled{cursor:default}
+
+.result{border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:6px}
+.result.ok{background:var(--good-soft)} .result.no{background:var(--bad-soft)}
+.result .head{font-weight:700} .result.ok .head{color:var(--good)} .result.no .head{color:var(--bad)}
+.example{display:flex; gap:10px; align-items:flex-start}
+.example > div{min-width:0}
+
+/* puzzle */
+.answer{min-height:58px; border-bottom:2px dashed var(--line); padding-bottom:10px; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start}
+.bank{display:flex; flex-wrap:wrap; gap:8px}
+.chip{border:1px solid var(--line); background:var(--surface); border-radius:10px; padding:7px 13px; font-size:18px; box-shadow:0 2px 0 var(--line); transition:transform .1s}
+.chip:hover{transform:translateY(-1px)}
+.chip.used{visibility:hidden}
+.chip:disabled{cursor:default; transform:none}
+
+/* expressions */
+.flash{display:flex; flex-direction:column; gap:14px; align-items:flex-start}
+.note{background:var(--note-soft); color:var(--ink); border-radius:10px; padding:10px 12px; font-size:14px}
+.note b{color:var(--note)}
+
+/* lists + generate */
+details.box{border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+details.box > summary{padding:12px 16px; font-weight:600; cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:8px}
+details.box > summary::-webkit-details-marker{display:none}
+details.box > summary::after{content:"+"; color:var(--muted); font-weight:400}
+details.box[open] > summary::after{content:"−"}
+.boxbody{padding:0 16px 16px; display:flex; flex-direction:column; gap:10px}
+ul.items{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+ul.items li{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px; padding:9px 0; border-top:1px solid var(--line)}
+ul.items li .w{font-size:17px; overflow-wrap:anywhere}
+ul.items li .m{grid-column:1; font-size:13px; color:var(--muted)}
+ul.items li .side{grid-column:2; grid-row:1 / span 2; display:flex; flex-direction:column; align-items:flex-end; gap:4px}
+.mine{font-size:11px; color:var(--accent); font-weight:600}
+input[type=text], textarea, select{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:9px 12px; min-width:0}
+input[type=text]{flex:1 1 180px}
+.status{font-size:13px; color:var(--muted)}
+.status.err{color:var(--bad)}
+
+/* chat */
+.scen{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px}
+.scen button{text-align:left; border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:2px}
+.scen button:hover{border-color:var(--accent)}
+.scen button[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
+.scen b{font-size:15px} .scen span{font-size:12.5px; color:var(--muted)}
+.msgs{display:flex; flex-direction:column; gap:14px; max-height:min(58vh,560px); overflow-y:auto; padding-right:4px}
+.msg{display:flex; flex-direction:column; gap:6px; max-width:88%; min-width:0}
+.msg.ai{align-self:flex-start} .msg.me{align-self:flex-end; align-items:flex-end}
+.bubble{border-radius:14px; padding:10px 14px; overflow-wrap:anywhere}
+.msg.ai .bubble{background:var(--sunk); border:1px solid var(--line); border-top-left-radius:4px}
+.msg.me .bubble{background:var(--accent); color:var(--on-accent); border-top-right-radius:4px}
+.msg.ai .bubble .tl{font-size:19px; line-height:1.5}
+.msg .tools{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center}
+.ko{font-size:14px; color:var(--muted)}
+.fb{background:var(--note-soft); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:4px; max-width:100%; text-align:left}
+.fb .lbl{font-size:12px; font-weight:700; color:var(--note)}
+.fb .tl{font-size:17px}
+.typing{display:inline-flex; gap:4px; padding:14px}
+.typing i{width:7px; height:7px; border-radius:50%; background:var(--muted); animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.hints{display:flex; flex-wrap:wrap; gap:6px}
+.hints button{border:1px dashed var(--accent); background:transparent; color:var(--accent); border-radius:99px; padding:4px 12px; font-size:15px}
+.composer{display:flex; gap:8px; align-items:flex-end}
+.composer textarea{flex:1; resize:none; min-height:46px; max-height:140px; font-size:16px}
+.empty{color:var(--muted); text-align:center; padding:12px 0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important; animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" id="mark" aria-hidden="true">日</div>
+      <div><h1>하루말</h1><p>나만의 일본어 · 영어 연습장</p></div>
+    </div>
+    <div class="seg" role="group" aria-label="학습 언어">
+      <button id="lang-ja" class="ja" aria-pressed="true">日本語</button>
+      <button id="lang-en" class="en" aria-pressed="false">English</button>
+    </div>
+  </header>
+  <div class="row between">
+    <div class="statline" id="statline"></div>
+    <span class="pill" id="store-pill"><i></i><span>불러오는 중</span></span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="학습 모드">
+    <button role="tab" id="tab-vocab" data-tab="vocab">단어</button>
+    <button role="tab" id="tab-expr" data-tab="expr">일상 표현</button>
+    <button role="tab" id="tab-sent" data-tab="sent">문장 조립</button>
+    <button role="tab" id="tab-chat" data-tab="chat">AI 회화</button>
+  </nav>
+  <main id="panel"></main>
+</div>
+
+<script>
+/* ───────── built-in content ───────── */
+const BASE = {
+ja: {
+vocab: [
+["毎日","まいにち","매일","毎日日本語を勉強します。","まいにちにほんごをべんきょうします。","매일 일본어를 공부해요."],
+["天気","てんき","날씨","今日はいい天気ですね。","きょうはいいてんきですね。","오늘 날씨 좋네요."],
+["約束","やくそく","약속","友達と約束があります。","ともだちとやくそくがあります。","친구랑 약속이 있어요."],
+["忘れる","わすれる","잊다, 깜빡하다","傘を忘れました。","かさをわすれました。","우산을 깜빡했어요."],
+["間に合う","まにあう","(시간에) 늦지 않다","電車に間に合いました。","でんしゃにまにあいました。","전철 시간에 맞췄어요."],
+["予約","よやく","예약","七時に予約しました。","しちじによやくしました。","7시로 예약했어요."],
+["お会計","おかいけい","(가게에서) 계산","お会計お願いします。","おかいけいおねがいします。","계산 부탁해요."],
+["駅","えき","역","駅まで歩きます。","えきまであるきます。","역까지 걸어가요."],
+["乗り換え","のりかえ","환승","次の駅で乗り換えです。","つぎのえきでのりかえです。","다음 역에서 환승이에요."],
+["近く","ちかく","근처","近くにコンビニはありますか。","ちかくにコンビニはありますか。","근처에 편의점 있어요?"],
+["忙しい","いそがしい","바쁘다","今週はすごく忙しいです。","こんしゅうはすごくいそがしいです。","이번 주는 엄청 바빠요."],
+["疲れる","つかれる","지치다, 피곤하다","今日はちょっと疲れた。","きょうはちょっとつかれた。","오늘 좀 피곤하다."],
+["楽しみ","たのしみ","기대됨, 낙","旅行が楽しみです。","りょこうがたのしみです。","여행이 기대돼요."],
+["大丈夫","だいじょうぶ","괜찮음","大丈夫ですか。","だいじょうぶですか。","괜찮아요?"],
+["手伝う","てつだう","돕다","手伝いましょうか。","てつだいましょうか。","도와드릴까요?"],
+["遅れる","おくれる","늦다","五分ぐらい遅れます。","ごふんぐらいおくれます。","5분 정도 늦어요."],
+["決める","きめる","정하다","まだ決めていません。","まだきめていません。","아직 안 정했어요."],
+["美味しい","おいしい","맛있다","このラーメン、美味しい！","このラーメン、おいしい！","이 라멘 맛있다!"],
+["辛い","からい","맵다","辛いのは苦手です。","からいのはにがてです。","매운 건 잘 못 먹어요."],
+["週末","しゅうまつ","주말","週末は何をしますか。","しゅうまつはなにをしますか。","주말에 뭐 해요?"],
+["仕事","しごと","일, 직업","仕事は何時に終わりますか。","しごとはなんじにおわりますか。","일은 몇 시에 끝나요?"],
+["会議","かいぎ","회의","午後から会議があります。","ごごからかいぎがあります。","오후부터 회의가 있어요."],
+["連絡","れんらく","연락","後で連絡します。","あとでれんらくします。","나중에 연락할게요."],
+["返事","へんじ","답장, 대답","返事が遅くなってごめん。","へんじがおそくなってごめん。","답장 늦어서 미안."],
+["準備","じゅんび","준비","準備はできましたか。","じゅんびはできましたか。","준비됐어요?"],
+["確認","かくにん","확인","もう一度確認します。","もういちどかくにんします。","한 번 더 확인할게요."],
+["便利","べんり","편리함","このアプリは便利です。","このアプリはべんりです。","이 앱 편리해요."],
+["迷う","まよう","길을 잃다, 망설이다","道に迷いました。","みちにまよいました。","길을 잃었어요."],
+["探す","さがす","찾다","鍵を探しています。","かぎをさがしています。","열쇠를 찾고 있어요."],
+["届く","とどく","(물건이) 도착하다","荷物が届きました。","にもつがとどきました。","택배가 왔어요."],
+["片付ける","かたづける","정리하다, 치우다","部屋を片付けます。","へやをかたづけます。","방을 정리해요."],
+["気持ち","きもち","기분, 마음","気持ちはわかります。","きもちはわかります。","마음은 알아요."],
+["久しぶり","ひさしぶり","오랜만","久しぶりに会いました。","ひさしぶりにあいました。","오랜만에 만났어요."],
+["自信","じしん","자신감","あまり自信がないです。","あまりじしんがないです。","별로 자신이 없어요."],
+["苦手","にがて","잘 못함, 꺼림","朝は苦手です。","あさはにがてです。","아침에 약해요."],
+["一緒に","いっしょに","함께, 같이","一緒に行きませんか。","いっしょにいきませんか。","같이 가지 않을래요?"],
+].map(([w,r,m,ex,exr,exk],i)=>({id:"jv"+i,w,r,m,ex,exr,exk})),
+expr: [
+["これください。","これください","이거 주세요.","가게","메뉴나 물건을 가리키면서 이 한마디면 충분해요."],
+["店内でお願いします。","てんないでおねがいします","매장에서 먹을게요.","카페","포장은 「持ち帰りで」 또는 「テイクアウトで」."],
+["持ち帰りでお願いします。","もちかえりでおねがいします","포장해 주세요.","카페",""],
+["おすすめは何ですか。","おすすめはなんですか","추천 메뉴가 뭐예요?","식당",""],
+["お会計お願いします。","おかいけいおねがいします","계산해 주세요.","식당","점원을 부를 때는 먼저 「すみません」."],
+["すみません、駅はどこですか。","すみません、えきはどこですか","실례합니다, 역이 어디예요?","길","「すみません」은 사과뿐 아니라 말을 걸 때도 써요."],
+["ここから遠いですか。","ここからとおいですか","여기서 멀어요?","길",""],
+["久しぶり！元気だった？","ひさしぶり！げんきだった？","오랜만이야! 잘 지냈어?","친구","반말이에요. 존댓말은 「お久しぶりです」."],
+["最近どう？","さいきんどう？","요즘 어때?","친구",""],
+["それな！","それな！","그니까! 내 말이!","친구","젊은 층이 쓰는 말이라 윗사람에게는 쓰지 않아요."],
+["まじで？","まじで？","진짜? 실화야?","친구",""],
+["また今度ね。","またこんどね","다음에 또 보자.","친구","정중하게는 「また今度お願いします」."],
+["お疲れさまです。","おつかれさまです","수고 많으세요.","회사","회사에서 인사 대신 가장 많이 써요."],
+["よろしくお願いします。","よろしくおねがいします","잘 부탁드립니다.","회사",""],
+["少々お待ちください。","しょうしょうおまちください","잠시만 기다려 주세요.","회사",""],
+["確認してみます。","かくにんしてみます","확인해 볼게요.","회사",""],
+["お先に失礼します。","おさきにしつれいします","먼저 들어가 보겠습니다.","회사","퇴근할 때 써요. 남은 사람은 「お疲れさまです」로 답해요."],
+["なるほど。","なるほど","아, 그렇군요.","맞장구","윗사람에게는 「そうなんですね」가 더 무난해요."],
+["ちょっと待って。","ちょっとまって","잠깐만.","일상",""],
+["どうしよう。","どうしよう","어떡하지.","일상",""],
+["気にしないで。","きにしないで","신경 쓰지 마.","일상",""],
+["いただきます。","いただきます","잘 먹겠습니다.","일상","다 먹고 나서는 「ごちそうさまでした」."],
+].map(([t,r,ko,sit,note],i)=>({id:"je"+i,t,r,ko,sit,note})),
+sent: [
+["매일 아침 커피를 마셔요.",["毎朝","コーヒー","を","飲みます"],["が","食べます"],"。","まいあさコーヒーをのみます"],
+["역은 어디예요?",["駅","は","どこ","ですか"],["に","なん"],"。","えきはどこですか"],
+["주말에 친구랑 영화를 봤어요.",["週末","に","友達","と","映画","を","見ました"],["で","見ます"],"。","しゅうまつにともだちとえいがをみました"],
+["죄송해요, 조금 늦어요.",["すみません","、","少し","遅れます"],["早く","来ます"],"。","すみません、すこしおくれます"],
+["이거 얼마예요?",["これ","は","いくら","ですか"],["どれ","が"],"。","これはいくらですか"],
+["일본어를 공부하고 있어요.",["日本語","を","勉強して","います"],["が","いました"],"。","にほんごをべんきょうしています"],
+["내일은 비가 온대요.",["明日","は","雨","が","降る","そうです"],["雪","を"],"。","あしたはあめがふるそうです"],
+["같이 밥 먹지 않을래요?",["一緒に","ご飯","を","食べません","か"],["飲みません","が"],"。","いっしょにごはんをたべませんか"],
+["창문 열어도 돼요?",["窓","を","開けても","いい","ですか"],["閉めても","が"],"。","まどをあけてもいいですか"],
+["일 끝나면 연락할게요.",["仕事","が","終わったら","連絡します"],["始まったら","を"],"。","しごとがおわったられんらくします"],
+["이 가게 정말 맛있어요.",["この","店","は","本当に","美味しい","です"],["その","辛い"],"。","このみせはほんとうにおいしいです"],
+["어제는 바빠서 피곤했어요.",["昨日","は","忙しくて","疲れました"],["楽しくて","明日"],"。","きのうはいそがしくてつかれました"],
+["일본에 가 본 적이 있어요.",["日本","に","行った","ことが","あります"],["行く","います"],"。","にほんにいったことがあります"],
+["예약을 부탁하고 싶은데요.",["予約","を","お願い","したいんですが"],["会計","が"],"。","よやくをおねがいしたいんですが"],
+["조금 더 천천히 말해 주세요.",["もう少し","ゆっくり","話して","ください"],["早く","聞いて"],"。","もうすこしゆっくりはなしてください"],
+].map(([ko,tk,x,end,r],i)=>({id:"js"+i,ko,tk,x,end,r})),
+},
+en: {
+vocab: [
+["figure out","알아내다, 이해하다","I can't figure out how this works.","이게 어떻게 되는 건지 모르겠어."],
+["run late","늦어지다","Sorry, I'm running late.","미안, 좀 늦어지고 있어."],
+["catch up","근황을 나누다; 따라잡다","Let's catch up over coffee.","커피 마시면서 얘기 좀 하자."],
+["reschedule","일정을 다시 잡다","Can we reschedule to Friday?","금요일로 일정 바꿀 수 있을까?"],
+["available","(시간이) 되는, 이용 가능한","Are you available this afternoon?","오늘 오후에 시간 돼?"],
+["appreciate","고마워하다","I really appreciate your help.","도와줘서 정말 고마워."],
+["recommend","추천하다","What do you recommend?","뭐 추천해요?"],
+["borrow","빌리다","Can I borrow your charger?","충전기 좀 빌려도 돼?"],
+["refund","환불","I'd like a refund, please.","환불해 주세요."],
+["receipt","영수증","Do you need a receipt?","영수증 필요하세요?"],
+["commute","통근(하다)","My commute takes an hour.","출퇴근하는 데 한 시간 걸려."],
+["errand","볼일, 심부름","I have a few errands to run.","볼일이 몇 개 있어."],
+["exhausted","녹초가 된","I'm exhausted after work.","일 끝나고 녹초야."],
+["awkward","어색한","That was a little awkward.","좀 어색했어."],
+["honestly","솔직히","Honestly, I'm not sure.","솔직히 잘 모르겠어."],
+["actually","사실은","Actually, I already ate.","사실 나 이미 먹었어."],
+["definitely","확실히, 꼭","I'll definitely be there.","꼭 갈게."],
+["probably","아마","It'll probably rain later.","이따 아마 비 올 거야."],
+["in a hurry","서두르는, 급한","Sorry, I'm in a bit of a hurry.","미안, 좀 급해서."],
+["grab a bite","간단히 먹다","Want to grab a bite?","간단히 뭐 먹을래?"],
+["take a rain check","다음으로 미루다","Can I take a rain check?","다음으로 미뤄도 될까?"],
+["get used to","~에 익숙해지다","I'm getting used to it.","점점 익숙해지고 있어."],
+["look forward to","~을 기대하다","I'm looking forward to it.","기대하고 있어."],
+["hang out","어울려 놀다","Do you want to hang out this weekend?","이번 주말에 놀래?"],
+].map(([w,m,ex,exk],i)=>({id:"ev"+i,w,m,ex,exk})),
+expr: [
+["Can I get a latte to go?","라떼 포장해 주세요.","카페","주문할 때는 \"Can I get ~?\"이 가장 자연스러워요."],
+["For here or to go?","드시고 가세요, 가져가세요?","카페","점원이 하는 말이에요. \"For here, please.\"로 답하면 돼요."],
+["I'm just looking, thanks.","그냥 둘러보는 중이에요.","가게",""],
+["Could we get the check, please?","계산서 주시겠어요?","식당","영국에서는 check 대신 bill을 써요."],
+["Is this seat taken?","여기 자리 있어요?","일상",""],
+["How's it going?","잘 지내? / 어때?","인사","\"Good, you?\" 정도로 가볍게 답해요."],
+["Long time no see!","오랜만이야!","친구",""],
+["I'm running a bit late.","조금 늦을 것 같아.","약속",""],
+["No worries.","괜찮아, 신경 쓰지 마.","일상","Thank you와 Sorry 양쪽에 다 답할 수 있어요."],
+["That makes sense.","이해가 되네요.","맞장구",""],
+["I'll let you know.","알려 줄게.","약속",""],
+["Let me think about it.","생각해 볼게요.","일상",""],
+["Sounds good to me.","난 좋아.","약속",""],
+["Sorry, I didn't catch that.","죄송한데 잘 못 들었어요.","대화","\"What?\"보다 훨씬 부드러워요."],
+["Could you say that again?","다시 한번 말해 줄래요?","대화",""],
+["What do you mean by that?","그게 무슨 뜻이에요?","대화",""],
+["I'm on my way.","가는 중이야.","약속",""],
+["It's up to you.","네가 정해.","일상",""],
+["I'm not sure, to be honest.","솔직히 잘 모르겠어요.","대화",""],
+["Let's catch up soon.","조만간 만나서 얘기하자.","친구",""],
+["Just to double-check, is it at 3?","확인차 여쭤보는데, 3시 맞죠?","회사","\"Just to double-check\"로 시작하면 정중하게 다시 확인할 수 있어요."],
+["Do you have a minute?","잠깐 시간 돼요?","회사",""],
+].map(([t,ko,sit,note],i)=>({id:"ee"+i,t,ko,sit,note})),
+sent: [
+["어제 친구랑 영화 봤어.","I watched a movie with my friend yesterday.",["saw","at"]],
+["조금 늦을 것 같아.","I'm going to be a little late.",["will","lately"]],
+["그거 어디서 샀어?","Where did you buy that?",["do","bought"]],
+["내일 시간 돼?","Are you free tomorrow?",["Do","time"]],
+["이것 좀 도와줄 수 있어?","Can you help me with this?",["to","for"]],
+["그는 여기서 3년째 일하고 있어.","He has been working here for three years.",["since","is"]],
+["나는 커피보다 차를 더 좋아해.","I like tea more than coffee.",["then","most"]],
+["무슨 말인지 알겠어.","I know what you mean.",["that","means"]],
+["창문 좀 열어도 될까요?","Do you mind if I open the window?",["Would","opened"]],
+["그걸 진작 알았더라면 좋았을 텐데.","I wish I had known that earlier.",["have","know"]],
+["우리 회의가 다음 주로 미뤄졌어.","Our meeting was pushed to next week.",["pushing","at"]],
+["여기서 역까지 얼마나 걸려요?","How long does it take to get to the station from here?",["much","takes"]],
+["나 거의 다 왔어.","I'm almost there.",["here","most"]],
+["그녀가 뭐라고 했는지 기억이 안 나.","I can't remember what she said.",["does","says"]],
+["이번 주말에 뭐 할 거야?","What are you doing this weekend?",["did","at"]],
+].map(([ko,s,x],i)=>({id:"es"+i,ko,s,x})),
+}};
+
+const SCEN = {
+ja: [
+ {id:"cafe", t:"카페 주문", d:"도쿄의 카페 점원과", p:"You are a staff member at a small café in Tokyo. The learner is a customer ordering drinks and food. Use polite customer-service Japanese."},
+ {id:"road", t:"길 묻기", d:"신주쿠역 근처 현지인에게", p:"You are a friendly local near Shinjuku Station. The learner stopped you to ask for directions."},
+ {id:"izakaya", t:"이자카야에서 친구와", d:"반말로 수다", p:"You are the learner's Japanese friend at an izakaya after work. Speak casually (タメ口), chat about work, food and weekend plans."},
+ {id:"meet", t:"처음 만난 사람", d:"언어교환 모임 자기소개", p:"You just met the learner at a language-exchange meetup in Tokyo. Introduce yourself and make small talk about hobbies, work and Korea."},
+ {id:"hotel", t:"호텔 체크인", d:"프런트 직원과", p:"You are a front-desk clerk at a business hotel in Osaka. The learner is checking in."},
+ {id:"free", t:"자유 대화", d:"오늘 하루, 관심사", p:"You are a friendly Japanese conversation partner. Ask about the learner's day and interests and follow their lead."},
+],
+en: [
+ {id:"cafe", t:"카페 주문", d:"시애틀의 바리스타와", p:"You are a barista at a busy café in Seattle. The learner is a customer ordering."},
+ {id:"work", t:"동료와 스몰톡", d:"월요일 아침 사무실", p:"You are the learner's friendly coworker. It's Monday morning at the office; make small talk about the weekend and the week ahead."},
+ {id:"road", t:"길 묻기", d:"런던 현지인에게", p:"You are a local in central London. The learner stopped you to ask for directions."},
+ {id:"friend", t:"친구와 근황", d:"오랜만에 만난 친구", p:"You are the learner's old friend. You haven't seen each other in months; catch up casually."},
+ {id:"hotel", t:"호텔 체크인", d:"프런트 직원과", p:"You are a front-desk clerk at a hotel in New York. The learner is checking in."},
+ {id:"free", t:"자유 대화", d:"오늘 하루, 관심사", p:"You are a friendly English conversation partner. Ask about the learner's day and interests and follow their lead."},
+]};
+const LEVELS = [
+ {t:"입문", p:"complete beginner: very short, simple sentences and only the most common words"},
+ {t:"초급", p:"beginner: simple sentences and everyday vocabulary"},
+ {t:"중급", p:"intermediate: natural everyday speech, common idioms are fine"},
+];
+const LANG = {ja:{ko:"일본어", en:"Japanese", tts:"ja-JP", mark:"日"}, en:{ko:"영어", en:"English", tts:"en-US", mark:"A"}};
+const IV = [0,1,3,7,14,30,60]; // Leitner box intervals in days
+const DAY = 864e5;
+
+/* ───────── state ───────── */
+const S = {
+  lang:"ja", tab:"vocab", showReading:true, accurate:false,
+  prog:{ja:{}, en:{}}, custom:{ja:{vocab:[],expr:[],sent:[]}, en:{vocab:[],expr:[],sent:[]}},
+  stats:{days:{}}, sess:{ja:{}, en:{}}, chat:{ja:null, en:null},
+  pick:{ja:{sc:"cafe", lv:0}, en:{sc:"cafe", lv:1}},
+  ai:"pending", open:{}, topic:{}, gen:{},
+};
+try{ const p = JSON.parse(localStorage.getItem("harumal:prefs")||"{}");
+  if(p.lang in LANG) S.lang=p.lang; if(["vocab","expr","sent","chat"].includes(p.tab)) S.tab=p.tab;
+  if(typeof p.showReading==="boolean") S.showReading=p.showReading; if(typeof p.accurate==="boolean") S.accurate=p.accurate;
+}catch{}
+function savePrefs(){ try{ localStorage.setItem("harumal:prefs", JSON.stringify({lang:S.lang, tab:S.tab, showReading:S.showReading, accurate:S.accurate})); }catch{} }
+
+/* ───────── helpers ───────── */
+const $ = s => document.querySelector(s);
+function el(tag, props, ...kids){
+  const n = document.createElement(tag);
+  if(props) for(const [k,v] of Object.entries(props)){
+    if(v==null || v===false) continue;
+    if(k==="class") n.className=v;
+    else if(k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if(k==="value") n.value=v;
+    else n.setAttribute(k, v===true ? "" : v);
+  }
+  for(const k of kids.flat(Infinity)){ if(k==null || k===false) continue; n.append(k instanceof Node ? k : String(k)); }
+  return n;
+}
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const pad = n => String(n).padStart(2,"0");
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const canSpeak = "speechSynthesis" in window;
+function speak(text, lang=S.lang){
+  if(!canSpeak) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = LANG[lang].tts; u.rate = lang==="ja" ? .9 : .95;
+    const v = speechSynthesis.getVoices().find(v => v.lang.replace("_","-").toLowerCase().startsWith(u.lang.slice(0,2)));
+    if(v) u.voice = v;
+    speechSynthesis.speak(u);
+  }catch{}
+}
+function spk(text){
+  if(!canSpeak || !text) return null;
+  const b = el("button",{class:"icon-btn", type:"button", "aria-label":"발음 듣기", title:"발음 듣기", onclick:e=>{e.stopPropagation(); speak(text);}});
+  b.innerHTML = SPK; return b;
+}
+function dots(b){ return el("span",{class:"dots", title:`익힘 단계 ${b}/6`, "aria-label":`익힘 단계 ${b}/6`}, [1,2,3,4,5,6].map(i=>el("i",{class:i<=b?"on":null}))); }
+
+/* ───────── items, SRS ───────── */
+function prepSent(lang, s){
+  if(lang==="en"){
+    const m = s.s.trim().match(/^(.*?)([.?!])?$/);
+    return {...s, tk:m[1].split(/\s+/), end:m[2]||".", full:s.s.trim()};
+  }
+  return {...s, full:s.tk.join("")+(s.end||"。")};
+}
+function pool(kind, lang=S.lang){
+  const mine = (S.custom[lang][kind]||[]).map(x=>({...x, mine:true}));
+  let all = [...mine, ...BASE[lang][kind]];
+  if(kind==="sent") all = all.map(s=>prepSent(lang,s));
+  return all;
+}
+const pkey = (kind,id) => kind[0]+":"+id;
+function prog(kind,id,lang=S.lang){ return S.prog[lang][pkey(kind,id)]; }
+function counts(kind){
+  const now=Date.now(), items=pool(kind); let due=0, fresh=0, learned=0;
+  for(const it of items){ const p=prog(kind,it.id); if(!p) fresh++; else { if(p.due<=now) due++; if(p.b>=4) learned++; } }
+  return {due, fresh, learned, total:items.length};
+}
+function buildQueue(kind, size=10){
+  const now=Date.now(), items=pool(kind);
+  const P = it => prog(kind,it.id);
+  const due = items.filter(it=>P(it) && P(it).due<=now).sort((a,b)=>P(a).due-P(b).due);
+  const freshAll = items.filter(it=>!P(it));
+  const fresh = [...shuffle(freshAll.filter(i=>i.mine)), ...shuffle(freshAll.filter(i=>!i.mine))];
+  let q = [...due.slice(0,size), ...fresh].slice(0,size);
+  if(q.length<size){
+    const rest = items.filter(it=>!q.includes(it) && P(it)).sort((a,b)=>P(a).due-P(b).due);
+    q = q.concat(rest.slice(0,size-q.length));
+  }
+  return shuffle(q);
+}
+function grade(kind, id, ok){
+  const k=pkey(kind,id), P=S.prog[S.lang];
+  const p = {...(P[k]||{b:0,due:0,n:0,ok:0})};
+  p.n++;
+  if(ok){ p.ok++; p.b=Math.min(p.b+1, IV.length-1); p.due=Date.now()+IV[p.b]*DAY-3600e3; }
+  else { p.b=0; p.due=Date.now()+5*60e3; }
+  P[k]=p; markDirty("progress-"+S.lang); bumpToday();
+}
+function bumpToday(){ const k=dkey(new Date()); S.stats.days[k]=(S.stats.days[k]||0)+1; markDirty("stats"); renderStats(); }
+function streak(){
+  const d=new Date(); let n=0;
+  if(!S.stats.days[dkey(d)]) d.setDate(d.getDate()-1);
+  while(S.stats.days[dkey(d)]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+
+/* ───────── storage: account db, or this browser ───────── */
+const KEYS = ["progress-ja","progress-en","custom-ja","custom-en","stats"];
+const Store = { mode:"loading", db:null, uid:null, ready:false, blocked:new Set(),
+  path(k){ return `data/users/${this.uid}/${k}`; },
+  async load(k){
+    if(this.mode==="cloud"){
+      for(let t=0;t<2;t++){
+        try{ const s=await this.db.doc(this.path(k)).get(); return s.exists ? JSON.parse(JSON.stringify(s.data())) : null; }
+        catch(e){ if(t===0) await new Promise(r=>setTimeout(r,600+Math.random()*600)); }
+      }
+      this.blocked.add(k); return null;
+    }
+    try{ const v=localStorage.getItem("harumal:"+k); return v ? JSON.parse(v) : null; }catch{ return null; }
+  },
+  async save(k, data){
+    if(this.blocked.has(k)) return;
+    if(this.mode==="cloud") return this.db.doc(this.path(k)).set(data);
+    try{ localStorage.setItem("harumal:"+k, JSON.stringify(data)); }catch{}
+  },
+};
+function dataFor(k){
+  if(k==="stats") return S.stats;
+  const [kind, lang] = k.split("-");
+  return kind==="progress" ? {items:S.prog[lang]} : S.custom[lang];
+}
+const dirty = new Set(); let saveTimer=null, saving=false, saveErr=false;
+function markDirty(k){ dirty.add(k); clearTimeout(saveTimer); saveTimer=setTimeout(flush,1200); }
+async function flush(){
+  if(!Store.ready || saving){ clearTimeout(saveTimer); saveTimer=setTimeout(flush,900); return; }
+  saving=true; const keys=[...dirty]; dirty.clear();
+  for(const k of keys){
+    try{ await Store.save(k, dataFor(k)); saveErr=false; }
+    catch(e){ saveErr=true; dirty.add(k); console.warn("save failed", k, e); }
+  }
+  saving=false; renderPill();
+  if(saveErr && dirty.size){ clearTimeout(saveTimer); saveTimer=setTimeout(flush,8000); }
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden" && dirty.size) flush(); });
+
+async function initStore(){
+  const cl = window.claude; let db=null, user=null, uid=null;
+  if(cl && cl.use){ try{ [db,user] = await Promise.all([cl.use("db"), cl.use("user")]); }catch{} }
+  if(db && user){ try{ uid = await user.id(); }catch{} }
+  if(db && uid){ Store.db=db; Store.uid=uid; Store.mode="cloud"; } else Store.mode="local";
+  const got = {};
+  for(const k of KEYS) got[k] = await Store.load(k);
+  for(const lang of ["ja","en"]){
+    const p=got["progress-"+lang]; if(p && p.items) S.prog[lang] = {...p.items, ...S.prog[lang]};
+    const c=got["custom-"+lang]; if(c) for(const kind of ["vocab","expr","sent"]) if(Array.isArray(c[kind])) S.custom[lang][kind] = [...c[kind], ...S.custom[lang][kind].filter(x=>!c[kind].some(y=>y.id===x.id))];
+  }
+  if(got.stats && got.stats.days) for(const [d,n] of Object.entries(got.stats.days)) S.stats.days[d] = Math.max(n, S.stats.days[d]||0);
+  Store.ready = true; renderPill(); renderStats();
+  if(S.tab!=="chat") renderPanel();
+  if(dirty.size) flush();
+}
+
+/* ───────── AI (Claude via the page's sample capability) ───────── */
+let samplePromise = null;
+function getSample(){
+  if(!samplePromise) samplePromise = (window.claude && window.claude.use) ? window.claude.use("sample").catch(()=>null) : Promise.resolve(null);
+  return samplePromise;
+}
+const HIDE_CODES = ["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"];
+function aiErr(e){
+  const c = e && e.code;
+  if(HIDE_CODES.includes(c)){ S.ai="off"; return "AI 사용이 허용되지 않았어요. 페이지의 권한 메뉴에서 Claude 사용을 허용하면 다시 쓸 수 있어요."; }
+  return ({rate_limited:"요청이 많아요. 잠시 후 다시 시도해 주세요.",
+    invalid_json:"AI 답변 형식이 어긋났어요. 다시 시도해 주세요.",
+    refused:"이 내용에는 답할 수 없대요. 다르게 써 보세요.",
+    session_expired:"claude.ai에 다시 로그인해야 해요.",
+    empty_completion:"빈 답이 왔어요. 다시 시도해 주세요."})[c] || "연결이 끊겼어요. 다시 시도해 주세요.";
+}
+
+/* ───────── header ───────── */
+function renderStats(){
+  const today = S.stats.days[dkey(new Date())]||0, st=streak();
+  const c = counts("vocab"), e = counts("expr"), s = counts("sent");
+  const due = c.due+e.due+s.due;
+  $("#statline").replaceChildren(
+    el("span",null,"오늘 ",el("b",null,today),"회"),
+    el("span",null,el("b",null,st),"일 연속"),
+    el("span",null,LANG[S.lang].ko," 복습 대기 ",el("b",null,due),"개"),
+  );
+}
+function renderPill(){
+  const p=$("#store-pill"), t=p.querySelector("span");
+  p.className = "pill";
+  if(Store.blocked.size || saveErr){ p.classList.add("err"); t.textContent = "저장 오류 · 새로고침해 주세요"; return; }
+  if(Store.mode==="cloud"){ p.classList.add("cloud"); t.textContent="내 계정에 저장"; }
+  else if(Store.mode==="local") t.textContent="이 브라우저에 저장";
+  else t.textContent="불러오는 중";
+}
+function renderChrome(){
+  document.body.dataset.lang = S.lang;
+  $("#mark").textContent = LANG[S.lang].mark;
+  $("#lang-ja").setAttribute("aria-pressed", S.lang==="ja");
+  $("#lang-en").setAttribute("aria-pressed", S.lang==="en");
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===S.tab));
+  renderStats();
+}
+function renderPanel(){
+  const r = {vocab:renderVocab, expr:renderExpr, sent:renderSent, chat:renderChat}[S.tab];
+  $("#panel").replaceChildren(r());
+  if(S.tab==="chat"){ const m=$(".msgs"); if(m) m.scrollTop=m.scrollHeight; }
+}
+function render(){ renderChrome(); renderPanel(); }
+
+/* ───────── shared: session shell, AI generator, item list ───────── */
+function sess(kind){
+  const L=S.sess[S.lang];
+  if(!L[kind] || L[kind].i>=L[kind].queue.length && L[kind].restart){ L[kind]={queue:buildQueue(kind), i:0, right:0, st:null}; }
+  return L[kind];
+}
+function newSet(kind){ S.sess[S.lang][kind]=null; renderPanel(); }
+function header(kind, s){
+  const c=counts(kind);
+  return [
+    el("div",{class:"row between"},
+      el("div",{class:"counts"},
+        el("span",null,"복습 ",el("b",null,c.due)),
+        el("span",null,"새 항목 ",el("b",null,c.fresh)),
+        el("span",null,"익힘 ",el("b",null,c.learned),"/",c.total)),
+      el("span",{class:"small muted"}, `${Math.min(s.i+1,s.queue.length)} / ${s.queue.length}`)),
+    el("div",{class:"progress"}, el("span",{style:`width:${s.queue.length? (s.i/s.queue.length*100):0}%`})),
+  ];
+}
+function doneCard(kind, s){
+  return el("div",{class:"card"},
+    el("div",{class:"prompt"},
+      el("span",{class:"tag"},"세트 완료"),
+      el("div",{class:"mid"}, `${s.queue.length}개 중 ${s.right}개를 맞혔어요.`),
+      el("p",{class:"muted", style:"margin:0"}, "틀린 항목은 5분 뒤, 맞힌 항목은 익힘 단계에 따라 1일·3일·7일 뒤에 다시 나와요.")),
+    el("div",{class:"row"}, el("button",{class:"btn", onclick:()=>newSet(kind)},"다음 세트")));
+}
+const GEN_LABEL = {vocab:"단어", expr:"표현", sent:"문장"};
+function genBox(kind){
+  if(S.ai==="off") return null;
+  const key=S.lang+kind, st=S.gen[key]||{};
+  const input = el("input",{type:"text", id:"gen-"+kind, placeholder:"주제 (예: 병원, 회식, 여행, 쇼핑)", value:S.topic[key]||"", oninput:e=>{S.topic[key]=e.target.value;},
+    onkeydown:e=>{ if(e.key==="Enter" && !e.isComposing && e.keyCode!==229) go(); }});
+  const go = ()=>generate(kind, (S.topic[key]||"").trim());
+  return el("details",{class:"box", open:S.open["gen"+kind]||st.busy||st.msg ? true : null, ontoggle:e=>{S.open["gen"+kind]=e.target.open;}},
+    el("summary",null,`AI로 ${GEN_LABEL[kind]} 더 만들기`),
+    el("div",{class:"boxbody"},
+      el("p",{class:"small muted", style:"margin:0"}, `관심 있는 주제를 적으면 그에 맞는 ${LANG[S.lang].ko} ${GEN_LABEL[kind]}을 만들어 학습 목록에 추가해요.`),
+      el("div",{class:"row"}, input, el("button",{class:"btn sm", disabled:st.busy||null, onclick:go}, st.busy?"만드는 중…":"만들기")),
+      st.msg ? el("div",{class:"status"+(st.err?" err":"")}, st.msg) : null));
+}
+function listBox(kind){
+  const items = pool(kind);
+  const W = it => it.w||it.t||it.full, M = it => it.m||it.ko;
+  return el("details",{class:"box", open:S.open["list"+kind]||null, ontoggle:e=>{S.open["list"+kind]=e.target.open;}},
+    el("summary",null,`전체 ${GEN_LABEL[kind]} 보기 (${items.length})`),
+    el("div",{class:"boxbody"}, el("ul",{class:"items"}, items.map(it=>{
+      const p=prog(kind,it.id);
+      return el("li",null,
+        el("div",{class:"w tl"}, W(it), S.lang==="ja" && it.r ? el("span",{class:"rd"}," ",it.r) : null),
+        el("div",{class:"m"}, M(it)),
+        el("div",{class:"side"}, dots(p?p.b:0), it.mine ? el("span",{class:"row"}, el("span",{class:"mine"},"내 항목"),
+          el("button",{class:"link", onclick:()=>removeCustom(kind,it.id)},"삭제")) : null));
+    }))));
+}
+function removeCustom(kind,id){
+  S.custom[S.lang][kind] = S.custom[S.lang][kind].filter(x=>x.id!==id);
+  markDirty("custom-"+S.lang); renderPanel();
+}
+
+async function generate(kind, topic){
+  const lang=S.lang, key=lang+kind, L=LANG[lang];
+  S.gen[key]={busy:true, msg:"Claude가 만드는 중이에요… (10~40초)"}; renderPanel();
+  const sample = await getSample();
+  if(!sample){ S.ai="off"; S.gen[key]={}; renderPanel(); return; }
+  const t = topic || "everyday life";
+  const known = pool(kind,lang).map(it=>it.w||it.t||it.full).slice(0,120).join(" / ");
+  let prompt;
+  if(kind==="vocab") prompt = lang==="ja"
+    ? `Create 8 useful Japanese vocabulary items for a Korean native speaker (beginner to lower-intermediate) about the topic: "${t}". Prefer words used in real daily conversation. Do not repeat any of these: ${known}.\nReply with only a JSON array of objects:\n[{"w":"word as normally written (kanji if common)","r":"reading in hiragana","m":"short Korean meaning","ex":"short natural example sentence","exr":"the example in hiragana","exk":"Korean translation of the example"}]`
+    : `Create 8 useful English words or phrasal verbs for a Korean native speaker (intermediate) about the topic: "${t}". Prefer words used in real daily conversation. Do not repeat any of these: ${known}.\nReply with only a JSON array of objects:\n[{"w":"word or phrase","m":"short Korean meaning","ex":"short natural example sentence","exk":"Korean translation of the example"}]`;
+  else if(kind==="expr") prompt = `Create 6 natural, frequently used everyday ${L.en} expressions for a Korean native speaker about the situation: "${t}". Real spoken phrases people actually say, not textbook sentences. Do not repeat any of these: ${known}.\nReply with only a JSON array of objects:\n[{"t":"the ${L.en} expression"${lang==="ja"?`,"r":"reading in hiragana"`:""},"ko":"natural Korean equivalent","sit":"situation label in Korean, 2-6 characters","note":"one short usage tip in Korean, or empty string"}]`;
+  else prompt = lang==="ja"
+    ? `Create 5 Japanese sentence-building exercises for a Korean native speaker (beginner) about the topic: "${t}". Each sentence is short and natural.\nReply with only a JSON array of objects:\n[{"ko":"Korean sentence","tk":["the Japanese sentence split into 3-8 chunks in correct order: words and particles as separate chunks, no final punctuation"],"x":["2 plausible wrong chunks"],"end":"。 or ？","r":"the full sentence in hiragana"}]`
+    : `Create 5 English sentence-building exercises for a Korean native speaker (intermediate) about the topic: "${t}". Each sentence is natural spoken English, 5-11 words.\nReply with only a JSON array of objects:\n[{"ko":"Korean sentence","s":"the English sentence with final punctuation","x":["2 plausible wrong words that a Korean learner might confuse"]}]`;
+  try{
+    const arr = await sample.json(prompt, {cache:false});
+    if(!Array.isArray(arr)) throw {code:"invalid_json"};
+    const stamp = Date.now().toString(36); const str = v => typeof v==="string" ? v.trim() : "";
+    const ok = arr.map((o,i)=>{
+      if(!o || typeof o!=="object") return null;
+      const id = "c"+stamp+i;
+      if(kind==="vocab"){ const it={id, w:str(o.w), m:str(o.m), ex:str(o.ex), exk:str(o.exk)}; if(lang==="ja"){ it.r=str(o.r); it.exr=str(o.exr); } return it.w&&it.m ? it : null; }
+      if(kind==="expr"){ const it={id, t:str(o.t), ko:str(o.ko), sit:str(o.sit)||"AI", note:str(o.note)}; if(lang==="ja") it.r=str(o.r); return it.t&&it.ko ? it : null; }
+      if(lang==="ja"){ const tk=Array.isArray(o.tk)?o.tk.map(str).filter(Boolean):[]; const x=Array.isArray(o.x)?o.x.map(str).filter(Boolean).slice(0,3):[];
+        return str(o.ko)&&tk.length>=2 ? {id, ko:str(o.ko), tk, x, end:str(o.end)||"。", r:str(o.r)} : null; }
+      const x=Array.isArray(o.x)?o.x.map(str).filter(Boolean).slice(0,3):[];
+      return str(o.ko)&&str(o.s) ? {id, ko:str(o.ko), s:str(o.s), x} : null;
+    }).filter(Boolean);
+    const have = new Set(pool(kind,lang).map(it=>it.w||it.t||it.full));
+    const fresh = ok.filter(it=>!have.has(it.w||it.t||(it.s||"")));
+    S.custom[lang][kind] = [...fresh, ...S.custom[lang][kind]];
+    markDirty("custom-"+lang);
+    S.sess[lang][kind] = null;
+    S.gen[key] = {msg: fresh.length ? `새 ${GEN_LABEL[kind]} ${fresh.length}개를 추가했어요. 지금 세트에 먼저 나와요.` : "겹치지 않는 항목이 없었어요. 다른 주제로 해 보세요."};
+  }catch(e){
+    S.gen[key] = {msg:aiErr(e), err:true};
+  }
+  renderPanel();
+}
+
+/* ───────── 단어 ───────── */
+function renderVocab(){
+  const s = sess("vocab");
+  const wrap = el("div",{style:"display:flex;flex-direction:column;gap:12px"});
+  if(s.i>=s.queue.length){ wrap.append(doneCard("vocab",s), genBox("vocab")||"", listBox("vocab")); return wrap; }
+  const it = s.queue[s.i];
+  if(!s.st || s.st.id!==it.id){
+    const others = shuffle(pool("vocab").filter(x=>x.id!==it.id && x.m!==it.m)).slice(0,3);
+    s.st = {id:it.id, dir:Math.random()<.6?0:1, choices:shuffle([it,...others]), chosen:null};
+  }
+  const st=s.st, ja=S.lang==="ja", p=prog("vocab",it.id);
+  const showR = ja && (S.showReading || st.chosen);
+  const promptEl = st.dir===0
+    ? el("div",{class:"prompt"},
+        el("div",{class:"row"}, el("span",{class:"tag"},"뜻 고르기"), dots(p?p.b:0), p?null:el("span",{class:"small muted"},"처음 보는 단어")),
+        el("div",{class:"row", style:"gap:12px"}, el("div",{class:"big tl"}, it.w), spk(it.w)),
+        showR && it.r ? el("div",{class:"rd"}, it.r) : null)
+    : el("div",{class:"prompt"},
+        el("div",{class:"row"}, el("span",{class:"tag"},`${LANG[S.lang].ko}로 고르기`), dots(p?p.b:0)),
+        el("div",{class:"big"}, it.m));
+  const choiceBtns = st.choices.map((c,i)=>{
+    let cls="choice";
+    if(st.chosen){ if(c.id===it.id) cls+=" right"; else if(c.id===st.chosen) cls+=" wrong"; }
+    return el("button",{class:cls, disabled:st.chosen?true:null, onclick:()=>answerVocab(c.id)},
+      el("span",{class:"k"}, i+1),
+      st.dir===0 ? el("span",null,c.m) : el("span",{class:"tl", style:"font-size:18px"}, c.w),
+      st.dir===1 && ja && (S.showReading||st.chosen) && c.r ? el("span",{class:"rd"},c.r) : null);
+  });
+  let result=null;
+  if(st.chosen){
+    const ok = st.chosen===it.id;
+    result = el("div",{class:"result "+(ok?"ok":"no")},
+      el("div",{class:"head"}, ok?"정답이에요":"아쉬워요"),
+      el("div",null, el("span",{class:"tl", style:"font-size:18px"}, it.w), ja&&it.r?el("span",{class:"rd"},"  ",it.r):null, " — ", it.m),
+      it.ex ? el("div",{class:"example"}, spk(it.ex), el("div",null,
+        el("div",{class:"tl", style:"font-size:17px"}, it.ex),
+        ja&&it.exr ? el("div",{class:"rd"}, it.exr) : null,
+        el("div",{class:"small muted"}, it.exk))) : null);
+  }
+  const card = el("div",{class:"card"}, header("vocab",s), promptEl, el("div",{class:"choices"},choiceBtns), result,
+    el("div",{class:"row between"},
+      ja ? el("label",{class:"small muted row", style:"gap:6px"}, el("input",{type:"checkbox", id:"opt-reading", checked:S.showReading||null,
+        onchange:e=>{S.showReading=e.target.checked; savePrefs(); renderPanel();}}), "읽는 법 미리 보기") : el("span"),
+      st.chosen ? el("button",{class:"btn", id:"next-btn", onclick:nextVocab},"다음") : el("span",{class:"small muted"},"숫자 키 1–4로도 고를 수 있어요")));
+  wrap.append(card, genBox("vocab")||"", listBox("vocab"));
+  return wrap;
+}
+function answerVocab(id){
+  const s=S.sess[S.lang].vocab, it=s.queue[s.i]; if(s.st.chosen) return;
+  s.st.chosen=id; const ok=id===it.id; if(ok) s.right++;
+  grade("vocab", it.id, ok);
+  renderPanel(); $("#next-btn")?.focus();
+}
+function nextVocab(){ const s=S.sess[S.lang].vocab; s.i++; s.st=null; renderPanel(); }
+
+/* ───────── 일상 표현 ───────── */
+function renderExpr(){
+  const s = sess("expr");
+  const wrap = el("div",{style:"display:flex;flex-direction:column;gap:12px"});
+  if(s.i>=s.queue.length){ wrap.append(doneCard("expr",s), genBox("expr")||"", listBox("expr")); return wrap; }
+  const it=s.queue[s.i], p=prog("expr",it.id);
+  if(!s.st || s.st.id!==it.id) s.st={id:it.id, open:false};
+  const front = el("div",{class:"flash"},
+    el("div",{class:"row"}, el("span",{class:"tag"}, it.sit||"표현"), dots(p?p.b:0), it.mine?el("span",{class:"mine"},"내 항목"):null),
+    el("div",{class:"mid"}, it.ko),
+    el("div",{class:"small muted"}, `${LANG[S.lang].ko}로 어떻게 말할까요? 먼저 소리 내어 말해 보고 확인하세요.`));
+  let back;
+  if(!s.st.open){
+    back = el("div",{class:"row"}, el("button",{class:"btn", id:"reveal-btn", onclick:()=>{s.st.open=true; renderPanel(); $("#know-btn")?.focus();}},"정답 보기"));
+  } else {
+    back = el("div",{class:"flash"},
+      el("div",{class:"row", style:"gap:12px"}, el("div",{class:"big tl", style:"font-size:clamp(24px,6vw,32px)"}, it.t), spk(it.t)),
+      S.lang==="ja" && it.r ? el("div",{class:"rd"}, it.r) : null,
+      it.note ? el("div",{class:"note"}, el("b",null,"팁 "), it.note) : null,
+      el("div",{class:"row"},
+        el("button",{class:"btn ghost", onclick:()=>rateExpr(false)},"아직 헷갈려요"),
+        el("button",{class:"btn", id:"know-btn", onclick:()=>rateExpr(true)},"알고 있었어요")));
+  }
+  wrap.append(el("div",{class:"card"}, header("expr",s), front, back), genBox("expr")||"", listBox("expr"));
+  return wrap;
+}
+function rateExpr(ok){ const s=S.sess[S.lang].expr, it=s.queue[s.i]; if(ok) s.right++; grade("expr",it.id,ok); s.i++; s.st=null; renderPanel(); $("#reveal-btn")?.focus(); }
+
+/* ───────── 문장 조립 ───────── */
+function renderSent(){
+  const s = sess("sent");
+  const wrap = el("div",{style:"display:flex;flex-direction:column;gap:12px"});
+  if(s.i>=s.queue.length){ wrap.append(doneCard("sent",s), genBox("sent")||""); return wrap; }
+  const it=s.queue[s.i], p=prog("sent",it.id), ja=S.lang==="ja";
+  if(!s.st || s.st.id!==it.id){
+    s.st = {id:it.id, bank:shuffle([...it.tk, ...(it.x||[])].map((t,k)=>({t,k}))), picked:[], checked:null};
+  }
+  const st=s.st;
+  const tokById = k => st.bank.find(b=>b.k===k);
+  const answer = el("div",{class:"answer", "aria-label":"내가 만든 문장"},
+    st.picked.length ? st.picked.map(k=>el("button",{class:"chip tl", disabled:st.checked!==null||null, onclick:()=>{ st.picked=st.picked.filter(x=>x!==k); renderPanel(); }}, tokById(k).t))
+      : el("span",{class:"small muted", style:"align-self:center"},"아래 단어를 눌러 문장을 만드세요"));
+  const bank = el("div",{class:"bank"}, st.bank.map(b=>el("button",{class:"chip tl"+(st.picked.includes(b.k)?" used":""), disabled:st.checked!==null||st.picked.includes(b.k)||null,
+    onclick:()=>{ st.picked.push(b.k); renderPanel(); }}, b.t)));
+  let result=null;
+  if(st.checked!==null){
+    result = el("div",{class:"result "+(st.checked?"ok":"no")},
+      el("div",{class:"head"}, st.checked?"정답이에요":"정답은 이거예요"),
+      el("div",{class:"example"}, spk(it.full), el("div",null,
+        el("div",{class:"tl", style:"font-size:19px"}, it.full),
+        ja && it.r ? el("div",{class:"rd"}, it.r) : null)));
+  }
+  const card = el("div",{class:"card"}, header("sent",s),
+    el("div",{class:"prompt"}, el("div",{class:"row"}, el("span",{class:"tag"},"이 문장을 만들어 보세요"), dots(p?p.b:0), it.mine?el("span",{class:"mine"},"내 항목"):null),
+      el("div",{class:"mid"}, it.ko)),
+    answer, bank, result,
+    el("div",{class:"row between"},
+      st.checked===null ? el("button",{class:"btn ghost sm", disabled:!st.picked.length||null, onclick:()=>{st.picked=[]; renderPanel();}},"다시 놓기") : el("span"),
+      st.checked===null
+        ? el("button",{class:"btn", disabled:!st.picked.length||null, onclick:checkSent},"확인")
+        : el("button",{class:"btn", id:"next-btn", onclick:()=>{ s.i++; s.st=null; renderPanel(); }},"다음")));
+  wrap.append(card, genBox("sent")||"");
+  return wrap;
+}
+function checkSent(){
+  const s=S.sess[S.lang].sent, it=s.queue[s.i], st=s.st;
+  const mine = st.picked.map(k=>st.bank.find(b=>b.k===k).t);
+  const norm = a => S.lang==="en" ? a.join(" ").toLowerCase().replace(/[.,?!]/g,"").replace(/\s+/g," ").trim() : a.join("").replace(/[、。？]/g,"");
+  st.checked = norm(mine)===norm(it.tk);
+  if(st.checked) s.right++;
+  grade("sent", it.id, st.checked);
+  renderPanel(); $("#next-btn")?.focus();
+  if(st.checked) speak(it.full);
+}
+
+/* ───────── AI 회화 ───────── */
+function chatRules(lang, sc, lv){
+  const L=LANG[lang].en, ja=lang==="ja";
+  return `You are a conversation partner helping a Korean native speaker practice spoken ${L}.
+Scenario: ${sc.p}
+Learner level: ${LEVELS[lv].p}.
+Rules:
+- Stay in character. "reply" is only ${L}: 1-2 short, natural spoken sentences at the learner's level${ja?", polite です/ます form unless the scenario says casual":""}. Usually end with something the learner can answer.
+- Check the learner's latest message. If it has a mistake or sounds unnatural, set "feedback" to {"fixed": a natural ${L} version, ${ja?`"reading": fixed in hiragana, `:""}"ko": its Korean meaning, "why": one or two short sentences in Korean explaining the point}. If the learner wrote Korean (or mixed Korean), "fixed" is the natural ${L} way to say it, and then reply as if they had said it. If the message is already natural, "feedback" is null. Ignore punctuation and small typos.
+- "hints": 2-3 short things the learner could say next, in ${L}, at their level.
+Reply with only one JSON object and nothing else:
+{"reply":"...",${ja?`"reading":"reply in hiragana and katakana only",`:""}"ko":"Korean translation of reply","feedback":null,"hints":["...","..."]}`;
+}
+function chatState(){ return S.chat[S.lang]; }
+function startChat(){
+  const lang=S.lang, pk=S.pick[lang], sc=SCEN[lang].find(x=>x.id===pk.sc);
+  S.chat[lang] = {sc, lv:pk.lv, turns:[{role:"user", content:"(Start the conversation now with your opening line. The learner has not spoken yet, so feedback is null.)"}], msgs:[], hints:[], busy:false, ctl:null, draft:"", err:""};
+  renderPanel(); chatCall();
+}
+async function chatCall(){
+  const lang=S.lang, c=S.chat[lang]; if(!c || c.busy) return;
+  c.busy=true; c.err=""; renderPanel();
+  const sample = await getSample();
+  if(!sample){ S.ai="off"; c.busy=false; renderPanel(); return; }
+  const ctl = new AbortController(); c.ctl=ctl;
+  const turns = [{role:"user", content:chatRules(lang, c.sc, c.lv)}, ...c.turns.slice(-24)];
+  try{
+    const res = await sample.json(turns, {cache:false, modelTier:S.accurate?"default":"quick", signal:ctl.signal});
+    if(!res || typeof res.reply!=="string" || !res.reply.trim()) throw {code:"invalid_json"};
+    const str = v => typeof v==="string" ? v.trim() : "";
+    c.turns.push({role:"assistant", content:JSON.stringify(res)});
+    const fb = res.feedback && typeof res.feedback==="object" && str(res.feedback.fixed) ? {fixed:str(res.feedback.fixed), reading:str(res.feedback.reading), ko:str(res.feedback.ko), why:str(res.feedback.why)} : null;
+    const lastMe = [...c.msgs].reverse().find(m=>m.who==="me");
+    if(lastMe && !lastMe.answered){ lastMe.fb=fb; lastMe.answered=true; }
+    c.msgs.push({who:"ai", text:str(res.reply), reading:str(res.reading), ko:str(res.ko), showKo:false});
+    c.hints = Array.isArray(res.hints) ? res.hints.map(str).filter(Boolean).slice(0,3) : [];
+    if(S.lang===lang && S.tab==="chat") setTimeout(()=>speakIfAuto(str(res.reply)), 0);
+  }catch(e){
+    if(!e || e.code!=="cancelled") c.err = aiErr(e);
+  }finally{
+    c.busy=false; c.ctl=null;
+    if(S.lang===lang && S.tab==="chat"){ renderPanel(); $("#chat-input")?.focus(); }
+  }
+}
+function speakIfAuto(t){ if(S.autoSpeak) speak(t); }
+function sendChat(){
+  const c=chatState(); if(!c || c.busy) return;
+  const text=(c.draft||"").trim(); if(!text) return;
+  c.turns.push({role:"user", content:text}); c.msgs.push({who:"me", text}); c.draft=""; c.hints=[];
+  bumpToday(); chatCall();
+}
+function savedExpr(t){ return S.custom[S.lang].expr.some(x=>x.t===t); }
+function saveExpr(it){
+  if(savedExpr(it.t)) return;
+  S.custom[S.lang].expr.unshift({id:"c"+Date.now().toString(36), t:it.t, r:it.r||"", ko:it.ko||"", sit:"회화에서", note:it.note||""});
+  markDirty("custom-"+S.lang); S.sess[S.lang].expr=null; renderPanel();
+}
+function saveBtn(it){
+  const done = savedExpr(it.t);
+  return el("button",{class:"link", disabled:done||null, style:done?"color:var(--muted);text-decoration:none":null, onclick:()=>saveExpr(it)}, done?"표현에 저장됨":"표현에 저장");
+}
+function renderChat(){
+  const lang=S.lang, c=chatState(), wrap=el("div",{style:"display:flex;flex-direction:column;gap:12px"});
+  if(S.ai==="off"){
+    wrap.append(el("div",{class:"card"}, el("div",{class:"mid"},"AI 회화를 쓸 수 없어요"),
+      el("p",{class:"muted", style:"margin:0"},"AI 회화는 claude.ai에서 이 페이지를 열고 Claude 사용을 허용해야 동작해요. 허용하지 않았다면 페이지의 권한 메뉴에서 바꿀 수 있어요. 단어, 표현, 문장 조립은 그대로 쓸 수 있어요.")));
+    return wrap;
+  }
+  if(!c){
+    const pk=S.pick[lang];
+    wrap.append(el("div",{class:"card"},
+      el("div",{class:"prompt"}, el("span",{class:"tag"},"상황 고르기"), el("div",{class:"mid"},`누구와 ${LANG[lang].ko}로 이야기할까요?`)),
+      el("div",{class:"scen"}, SCEN[lang].map(sc=>el("button",{"aria-pressed":pk.sc===sc.id, onclick:()=>{pk.sc=sc.id; renderPanel();}}, el("b",null,sc.t), el("span",null,sc.d)))),
+      el("div",{class:"row between"},
+        el("div",{class:"seg", role:"group", "aria-label":"난이도"}, LEVELS.map((L,i)=>el("button",{"aria-pressed":pk.lv===i, onclick:()=>{pk.lv=i; renderPanel();}}, L.t))),
+        el("button",{class:"btn", onclick:startChat},"대화 시작")),
+      el("div",{class:"small muted"},
+        "막히면 한국어로 써도 돼요. 자연스러운 ", LANG[lang].ko, " 문장으로 고쳐 주고, 고친 문장은 ‘일상 표현’ 복습 카드로 저장할 수 있어요."),
+      el("label",{class:"small muted row", style:"gap:6px"}, el("input",{type:"checkbox", id:"opt-accurate", checked:S.accurate||null, onchange:e=>{S.accurate=e.target.checked; savePrefs();}}),
+        "교정 정확도 우선 (답이 느려져요)")));
+    return wrap;
+  }
+  const msgs = el("div",{class:"msgs", "aria-live":"polite"},
+    c.msgs.map(m=>{
+      if(m.who==="ai") return el("div",{class:"msg ai"},
+        el("div",{class:"bubble"}, el("div",{class:"tl"}, m.text),
+          lang==="ja" && S.showReading && m.reading ? el("div",{class:"rd"}, m.reading) : null,
+          m.showKo ? el("div",{class:"ko"}, m.ko) : null),
+        el("div",{class:"tools"}, spk(m.text),
+          el("button",{class:"link", onclick:()=>{m.showKo=!m.showKo; renderPanel();}}, m.showKo?"번역 숨기기":"번역 보기"),
+          saveBtn({t:m.text, r:m.reading, ko:m.ko})));
+      return el("div",{class:"msg me"}, el("div",{class:"bubble"}, m.text),
+        m.fb ? el("div",{class:"fb"},
+          el("span",{class:"lbl"},"이렇게 말하면 더 자연스러워요"),
+          el("div",{class:"row", style:"gap:8px"}, el("span",{class:"tl"}, m.fb.fixed), spk(m.fb.fixed)),
+          lang==="ja" && m.fb.reading ? el("div",{class:"rd"}, m.fb.reading) : null,
+          m.fb.why ? el("div",{class:"small"}, m.fb.why) : null,
+          el("div",null, saveBtn({t:m.fb.fixed, r:m.fb.reading, ko:m.fb.ko, note:m.fb.why}))) : null);
+    }),
+    c.busy ? el("div",{class:"msg ai"}, el("div",{class:"bubble typing", "aria-label":"답장을 쓰는 중"}, el("i"),el("i"),el("i"))) : null,
+    c.err ? el("div",{class:"result no"}, el("div",null,c.err), el("div",null, el("button",{class:"btn sm ghost", onclick:chatCall},"다시 시도"))) : null);
+  const ta = el("textarea",{id:"chat-input", rows:"1", placeholder:`${LANG[lang].ko}로 답해 보세요 (한국어도 괜찮아요)`, value:c.draft,
+    oninput:e=>{ c.draft=e.target.value; e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,140)+"px"; },
+    onkeydown:e=>{ if(e.key==="Enter" && !e.shiftKey && !e.isComposing && e.keyCode!==229){ e.preventDefault(); sendChat(); } }});
+  wrap.append(el("div",{class:"card"},
+    el("div",{class:"row between"},
+      el("div",{class:"row"}, el("span",{class:"tag"}, c.sc.t), el("span",{class:"small muted"}, LEVELS[c.lv].t)),
+      el("div",{class:"row"},
+        lang==="ja" ? el("label",{class:"small muted row", style:"gap:6px"}, el("input",{type:"checkbox", id:"chat-reading", checked:S.showReading||null, onchange:e=>{S.showReading=e.target.checked; savePrefs(); renderPanel();}}),"읽는 법") : null,
+        canSpeak ? el("label",{class:"small muted row", style:"gap:6px"}, el("input",{type:"checkbox", id:"chat-auto", checked:S.autoSpeak||null, onchange:e=>{S.autoSpeak=e.target.checked;}}),"자동 읽기") : null,
+        el("button",{class:"btn ghost sm", onclick:()=>{ c.ctl?.abort(); S.chat[lang]=null; renderPanel(); }},"대화 끝내기"))),
+    msgs,
+    c.hints.length && !c.busy ? el("div",{class:"hints"}, el("span",{class:"small muted", style:"align-self:center"},"이렇게 말해 볼까요?"),
+      c.hints.map(h=>el("button",{class:"tl", onclick:()=>{ c.draft=h; renderPanel(); const t=$("#chat-input"); t.focus(); t.setSelectionRange(h.length,h.length); }}, h))) : null,
+    el("div",{class:"composer"}, ta,
+      c.busy ? el("button",{class:"btn ghost", onclick:()=>c.ctl?.abort()},"멈추기")
+             : el("button",{class:"btn", onclick:sendChat},"보내기"))));
+  return wrap;
+}
+
+/* ───────── wiring ───────── */
+$("#lang-ja").onclick = ()=>{ S.lang="ja"; savePrefs(); render(); };
+$("#lang-en").onclick = ()=>{ S.lang="en"; savePrefs(); render(); };
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; savePrefs(); render(); });
+document.addEventListener("keydown", e=>{
+  if(S.tab!=="vocab" || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  const s=S.sess[S.lang].vocab; if(!s || !s.st) return;
+  if(!s.st.chosen && /^[1-4]$/.test(e.key)){ const c=s.st.choices[+e.key-1]; if(c) answerVocab(c.id); }
+});
+if(canSpeak) try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch{}
+render(); renderPill();
+initStore();
+getSample().then(s=>{ const was=S.ai; S.ai = s ? (S.ai==="off"?"off":"on") : "off"; if(was!==S.ai && !(S.tab==="chat" && chatState())) renderPanel(); });
+</script>

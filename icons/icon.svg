@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#2D4890"/>
+  <rect x="96" y="128" width="200" height="200" rx="40" fill="#FFFFFF" opacity=".14"/>
+  <text x="196" y="292" text-anchor="middle" font-family="Yu Gothic, Hiragino Sans, Meiryo, sans-serif" font-weight="700" font-size="168" fill="#FFFFFF">日</text>
+  <rect x="236" y="216" width="180" height="180" rx="40" fill="#0C7560"/>
+  <text x="326" y="356" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-weight="700" font-size="150" fill="#FFFFFF">A</text>
+</svg>

@@ -1,0 +1,8 @@
+# API 키나 개인 백업이 저장소에 올라가지 않게
+*.env
+.env*
+harumal-backup-*.json
+node_modules/
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
