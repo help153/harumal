@@ -138,11 +138,12 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
+const APP_VERSION = "2026.10.14";
 const TABS = [
+  { id: "chat", label: "회화", icon: ICON.chat },
   { id: "vocab", label: "단어", icon: ICON.vocab },
   { id: "expr", label: "표현", icon: ICON.expr },
   { id: "sent", label: "조립", icon: ICON.sent },
-  { id: "chat", label: "회화", icon: ICON.chat },
   { id: "settings", label: "설정", icon: ICON.gear },
 ];
 function renderStats() {
@@ -499,7 +500,14 @@ async function chatCall() {
     if (lastMe && !lastMe.answered) { lastMe.fb = fb; lastMe.answered = true; }
     c.msgs.push({ who: "ai", text: s(res.reply), reading: s(res.reading), ko: s(res.ko), showKo: false });
     c.hints = Array.isArray(res.hints) ? res.hints.map(s).filter(Boolean).slice(0, 3) : [];
-    if (P.autoSpeak && P.lang === lang) sp.speak(s(res.reply), lang);
+    c.speakErr = "";
+    if (P.autoSpeak && P.lang === lang)
+      sp.speak(s(res.reply), lang).then((r) => {
+        if (r && !r.ok && R.chat[lang] === c) {
+          c.speakErr = "자동으로 읽어 주지 못했어요. 답변 옆 스피커 버튼을 눌러 들어 보세요. 그래도 안 들리면 설정의 ‘읽어 주기 테스트’를 눌러 주세요.";
+          if (P.tab === "chat" && P.lang === lang) renderPanel();
+        }
+      });
   } catch (e) {
     if (e.code !== "cancelled") c.err = e.message;
   } finally {
@@ -605,6 +613,7 @@ function renderChat() {
     c.hints.length && !c.busy ? el("div", { class: "hints" }, el("span", { class: "small muted", style: "align-self:center" }, "이렇게 말해 볼까요?"),
       c.hints.map((h) => el("span", { class: "hint" }, el("button", { class: "tl", onclick: () => { c.draft = h; renderPanel(); const t = $("#chat-input"); t?.focus(); } }, h), spk(h)))) : null,
     c.micErr ? el("div", { class: "status err" }, c.micErr) : null,
+    c.speakErr && !c.busy ? el("div", { class: "status err" }, c.speakErr) : null,
     el("div", { class: "composer" },
       sp.canListen() ? el("button", { class: "mic-round" + (c.listening ? " on" : ""), type: "button", "aria-label": c.listening ? "듣기 멈추기" : "말해서 입력", disabled: c.busy || null, onclick: chatMic }, svg(c.listening ? ICON.stop : ICON.mic)) : null,
       ta,
@@ -681,14 +690,16 @@ function renderSettings() {
     toggle("p-autoreveal", "단어·표현·문장 정답이 나오면 자동으로 읽어 주기", P.autoReveal, (v) => { P.autoReveal = v; persist(); }),
     toggle("p-slow", "천천히 읽기", P.slow, (v) => { P.slow = v; persist(); sp.configure({ ...K, slow: v }); sp.clearAudioCache(); }),
     el("div", { class: "row" },
-      el("button", { class: "btn sm ghost", onclick: () => {
+      el("button", { class: "btn sm ghost", onclick: async () => {
         const sample = P.lang === "ja" ? "こんにちは。今日も一緒に練習しましょう。" : "Hi there! Let's practice together today.";
-        sp.speak(sample, P.lang);
+        R.msg.voice = { text: "읽는 중…" };
+        renderPanel();
+        const r = await sp.speak(sample, P.lang);
         const name = sp.browserVoiceName(P.lang);
-        R.msg.voice = K.azureKey ? { text: "Azure 음성으로 읽었어요. 안 들리면 무음 모드와 볼륨을 확인해 주세요." }
-          : name === null ? { text: "이 브라우저는 읽어 주기를 지원하지 않아요.", err: true }
-          : name ? { text: `이 기기의 ${langKo()} 음성(${name})으로 읽었어요. 안 들리면 무음 모드와 미디어 볼륨을 확인해 주세요.` }
-          : { text: `이 기기에 ${langKo()} 음성이 없을 수 있어요. 폰 설정 → 텍스트 음성 변환(TTS)에서 ${langKo()} 음성을 내려받아 주세요.`, err: true };
+        R.msg.voice = name === null && !K.azureKey ? { text: "이 브라우저는 읽어 주기를 지원하지 않아요. Safari(아이폰)나 Chrome(안드로이드)으로 열어 주세요.", err: true }
+          : !r.ok ? { text: `소리를 내지 못했어요 (${r.error}). ${name ? "" : `이 기기에 ${langKo()} 음성이 없을 수 있어요. 폰 설정 → 텍스트 음성 변환(TTS)에서 ${langKo()} 음성을 내려받아 주세요. `}무음 모드도 확인해 주세요.`, err: true }
+          : K.azureKey ? { text: "Azure 음성으로 읽었어요. 안 들리면 무음 모드와 볼륨을 확인해 주세요.", ok: true }
+          : { text: `${name ? `${name} 음성으로` : "기기 기본 음성으로"} 읽었어요. 그래도 안 들리면 무음 모드(아이폰 옆 스위치)와 미디어 볼륨을 확인해 주세요.`, ok: true };
         renderPanel();
       } }, `${langKo()} 읽어 주기 테스트`)),
     msgLine("voice")));
@@ -709,6 +720,7 @@ function renderSettings() {
     msgLine("data"),
     el("div", { class: "row" },
       el("button", { class: "link danger", onclick: () => { K.anthropicKey = ""; K.azureKey = ""; saveK(); R.msg.data = { text: "이 기기에서 API 키를 지웠어요.", ok: true }; renderPanel(); } }, "이 기기에서 API 키 지우기"))));
+  wrap.append(el("p", { class: "small muted", style: "margin:0;text-align:center" }, `하루말 ${APP_VERSION}`));
   return wrap;
 }
 function exportBackup() {
@@ -748,4 +760,5 @@ addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); R.installEv
 if ("speechSynthesis" in window) try { speechSynthesis.getVoices(); } catch {}
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js").catch(() => {});
 store.requestPersist();
+P.tab = "chat"; // 앱을 열면 항상 AI 회화부터
 render();

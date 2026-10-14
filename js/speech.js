@@ -152,23 +152,37 @@ async function azureAudio(text, lang) {
   return buf;
 }
 
+// 읽기 중인 문장을 붙잡아 둔다. 참조가 없으면 일부 브라우저가 읽는 도중에 정리해 버려 소리가 끊긴다.
+let currentUtterance = null;
+
+// 실제로 읽기 시작했는지 알려준다: { ok: true } 또는 { ok: false, error }
 function browserSpeak(text, lang) {
   const synth = window.speechSynthesis;
-  if (!synth) return;
-  const go = () => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = LOC[lang];
-    u.rate = (lang === "ja" ? 0.9 : 0.95) * (cfg.slow ? 0.8 : 1);
-    const v = pickVoice(lang);
-    if (v) u.voice = v;
-    synth.speak(u);
-    if (synth.paused) synth.resume();
-  };
-  // Chrome은 cancel 직후 바로 speak하면 소리를 버리는 경우가 있어서 잠깐 쉬었다가 읽는다.
-  if (synth.speaking || synth.pending) {
-    synth.cancel();
-    setTimeout(go, 120);
-  } else go();
+  if (!synth) return Promise.resolve({ ok: false, error: "unsupported" });
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (r) => { if (!settled) { settled = true; resolve(r); } };
+    const go = () => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = LOC[lang];
+      u.rate = (lang === "ja" ? 0.9 : 0.95) * (cfg.slow ? 0.8 : 1);
+      const v = pickVoice(lang);
+      if (v) u.voice = v;
+      u.onstart = () => done({ ok: true });
+      u.onend = () => done({ ok: true });
+      u.onerror = (e) => done(e.error === "interrupted" || e.error === "canceled" ? { ok: true } : { ok: false, error: e.error || "error" });
+      currentUtterance = u;
+      synth.speak(u);
+      if (synth.paused) synth.resume();
+      // 시작 신호를 주지 않는 기기도 있어서, 잠시 뒤 읽고 있는지로 판단한다
+      setTimeout(() => done(synth.speaking ? { ok: true } : { ok: false, error: "no-start" }), 4000);
+    };
+    // Chrome은 cancel 직후 바로 speak하면 소리를 버리는 경우가 있어서 잠깐 쉬었다가 읽는다.
+    if (synth.speaking || synth.pending) {
+      synth.cancel();
+      setTimeout(go, 120);
+    } else go();
+  });
 }
 
 export const canSpeak = () => hasAzure() || "speechSynthesis" in window;
@@ -179,7 +193,7 @@ export function stopSpeaking() {
 }
 
 export async function speak(text, lang) {
-  if (!text) return;
+  if (!text) return { ok: false, error: "empty" };
   stopAudio();
   if (hasAzure()) {
     try { speechSynthesis.cancel(); } catch {}
@@ -192,12 +206,16 @@ export async function speak(text, lang) {
       src.connect(c.destination);
       src.start();
       current = src;
-      return;
+      return { ok: true };
     } catch (e) {
       console.warn("Azure TTS failed, using browser voice", e);
     }
   }
-  try { browserSpeak(text, lang); } catch {}
+  try {
+    return await browserSpeak(text, lang);
+  } catch {
+    return { ok: false, error: "exception" };
+  }
 }
 
 /* ───────── 말하기 인식 + 발음 평가 ───────── */

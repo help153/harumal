@@ -2,7 +2,7 @@
 // 앱 파일은 네트워크를 먼저 시도하고(업데이트 반영), 안 되면 저장본을 쓴다.
 // API 호출(Claude, Azure)과 다른 사이트 요청은 건드리지 않는다.
 
-const CACHE = "harumal-v2";
+const CACHE = "harumal-v3";
 const SHELL = [
   "./",
   "./index.html",
@@ -33,7 +33,8 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    fetch(req)
+    // no-cache: 서버에 바뀐 게 있는지 매번 확인해서, 새 버전을 올리면 바로 반영되게 한다
+    fetch(req, { cache: "no-cache" })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
