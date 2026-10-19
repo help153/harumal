@@ -173,15 +173,13 @@ Fields: w = the word or phrase, m = short Korean meaning, ex = a short natural e
 Fields: t = the ${L} expression,${isJa ? " r = reading in hiragana," : ""} ko = the natural Korean equivalent, sit = a situation label in Korean (2-6 characters), note = one short usage tip in Korean, or "".${avoid}`,
     };
   }
-  return isJa
-    ? {
-        schema: listSchema(obj(["ko", "tk", "x", "end", "r"])),
-        prompt: `Create 5 Japanese sentence-building exercises for a Korean native speaker (beginner) about the topic: "${t}". Each sentence is short and natural.
-Fields: ko = the Korean sentence, tk = the Japanese sentence split into 3-8 chunks in the correct order (words and particles as separate chunks, no final punctuation), x = 2 plausible wrong chunks, end = "。" or "？", r = the whole sentence in hiragana.${avoid}`,
-      }
-    : {
-        schema: listSchema(obj(["ko", "s", "x"])),
-        prompt: `Create 5 English sentence-building exercises for a Korean native speaker (intermediate) about the topic: "${t}". Each is natural spoken English, 5-11 words.
-Fields: ko = the Korean sentence, s = the English sentence with final punctuation, x = 2 plausible wrong words a Korean learner might confuse.${avoid}`,
-      };
+  // idiom
+  return {
+    schema: listSchema(obj(isJa ? ["w", "r", "m", "ex", "exr", "exk"] : ["w", "m", "ex", "exk"])),
+    prompt: isJa
+      ? `Create 6 common Japanese idioms (慣用句) or set phrases for a Korean native speaker that relate to: "${t}". Choose ones Japanese people really use in everyday conversation, not literary proverbs.
+Fields: w = the idiom as normally written, r = reading in hiragana, m = its meaning in short natural Korean (use a matching Korean idiom when one exists), ex = a short natural example sentence, exr = the example in hiragana, exk = Korean translation of the example.${avoid}`
+      : `Create 6 common English idioms or idiomatic phrases for a Korean native speaker (intermediate) that relate to: "${t}". Choose ones native speakers really use in everyday conversation.
+Fields: w = the idiom, m = its meaning in short natural Korean (use a matching Korean idiom when one exists), ex = a short natural example sentence, exk = Korean translation of the example.${avoid}`,
+  };
 }

@@ -7,9 +7,9 @@ const KEYS_KEY = "harumal:keys";
 export function emptyState() {
   return {
     prog: { ja: {}, en: {} },
-    custom: { ja: { vocab: [], expr: [], sent: [] }, en: { vocab: [], expr: [], sent: [] } },
-    stats: { days: {} },
-    prefs: { pv: 2, lang: "ja", tab: "vocab", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, slow: false },
+    custom: { ja: { vocab: [], idiom: [], expr: [] }, en: { vocab: [], idiom: [], expr: [] } },
+    stats: { days: {}, done: {} },
+    prefs: { pv: 3, lang: "ja", tab: "today", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, slow: false },
   };
 }
 
@@ -19,18 +19,22 @@ export function normalize(raw) {
   if (!raw || typeof raw !== "object") return s;
   for (const lang of ["ja", "en"]) {
     if (raw.prog?.[lang] && typeof raw.prog[lang] === "object") s.prog[lang] = raw.prog[lang];
-    for (const kind of ["vocab", "expr", "sent"]) {
+    for (const kind of ["vocab", "idiom", "expr"]) {
       const list = raw.custom?.[lang]?.[kind];
       if (Array.isArray(list)) s.custom[lang][kind] = list;
     }
   }
   if (raw.stats?.days && typeof raw.stats.days === "object") s.stats.days = raw.stats.days;
+  if (raw.stats?.done && typeof raw.stats.done === "object") s.stats.done = raw.stats.done;
   if (raw.prefs && typeof raw.prefs === "object") Object.assign(s.prefs, raw.prefs);
   // v2: AI 답변 자동 읽기를 기본으로 켠다 (이전 버전은 꺼진 채로 저장돼 있었음)
-  if (raw.prefs && !(raw.prefs.pv >= 2)) {
-    s.prefs.autoSpeak = true;
-    s.prefs.pv = 2;
+  if (raw.prefs && !(raw.prefs.pv >= 2)) s.prefs.autoSpeak = true;
+  // v3: 단어·숙어·표현 위주로 개편. 누르면 읽어 주기를 켜고 첫 화면을 '오늘'로
+  if (raw.prefs && !(raw.prefs.pv >= 3)) {
+    s.prefs.autoReveal = true;
+    s.prefs.tab = "today";
   }
+  s.prefs.pv = 3;
   return s;
 }
 

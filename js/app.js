@@ -59,7 +59,8 @@ const ICON = {
   stop: '<rect x="7" y="7" width="10" height="10" rx="1.5"/>',
   vocab: '<path d="M4 5h11a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h6M8 13h4"/>',
   expr: '<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4z"/>',
-  sent: '<rect x="3" y="7" width="6" height="5" rx="1"/><rect x="11" y="7" width="10" height="5" rx="1"/><rect x="6" y="14" width="9" height="5" rx="1"/>',
+  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  idiom: '<path d="M10 7H6a2 2 0 0 0-2 2v3h5v5H4"/><path d="M20 7h-4a2 2 0 0 0-2 2v3h5v5h-5"/>',
   chat: '<path d="M7 10h.01M12 10h.01M17 10h.01"/><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
@@ -78,18 +79,9 @@ function dots(b) {
 }
 
 /* ───────── 항목과 간격 반복 ───────── */
-function prepSent(lang, s) {
-  if (lang === "en") {
-    const m = s.s.trim().match(/^(.*?)([.?!])?$/);
-    return { ...s, tk: m[1].split(/\s+/), end: m[2] || ".", full: s.s.trim() };
-  }
-  return { ...s, full: s.tk.join("") + (s.end || "。") };
-}
 function pool(kind, lang = P.lang) {
   const mine = (S.custom[lang][kind] || []).map((x) => ({ ...x, mine: true }));
-  let all = [...mine, ...BASE[lang][kind]];
-  if (kind === "sent") all = all.map((s) => prepSent(lang, s));
-  return all;
+  return [...mine, ...BASE[lang][kind]];
 }
 const pkey = (kind, id) => kind[0] + ":" + id;
 const prog = (kind, id, lang = P.lang) => S.prog[lang][pkey(kind, id)];
@@ -138,17 +130,17 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.14";
+const APP_VERSION = "2026.10.19";
 const TABS = [
-  { id: "chat", label: "회화", icon: ICON.chat },
+  { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
+  { id: "idiom", label: "숙어", icon: ICON.idiom },
   { id: "expr", label: "표현", icon: ICON.expr },
-  { id: "sent", label: "조립", icon: ICON.sent },
   { id: "settings", label: "설정", icon: ICON.gear },
 ];
 function renderStats() {
   const today = S.stats.days[dkey(new Date())] || 0;
-  const due = counts("vocab").due + counts("expr").due + counts("sent").due;
+  const due = counts("vocab").due + counts("idiom").due + counts("expr").due;
   $("#statline").replaceChildren(
     el("span", null, "오늘 ", el("b", null, today), "회"),
     el("span", null, el("b", null, streak()), "일 연속"),
@@ -168,39 +160,22 @@ function renderChrome() {
   renderStats();
 }
 function renderPanel() {
-  const r = { vocab: renderVocab, expr: renderExpr, sent: renderSent, chat: renderChat, settings: renderSettings }[P.tab] || renderVocab;
+  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), idiom: () => renderQuizTab("idiom"), expr: renderExpr, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
   $("#panel").replaceChildren(r());
   if (P.tab === "chat") { const m = $(".msgs"); if (m) m.scrollTop = m.scrollHeight; }
 }
 function render() { renderChrome(); renderPanel(); }
 
-/* ───────── 공통: 세트, AI 생성, 목록, 따라 말하기 ───────── */
-function sess(kind) {
-  const L = R.sess[P.lang];
-  if (!L[kind]) L[kind] = { queue: buildQueue(kind), i: 0, right: 0, st: null };
-  return L[kind];
+/* ───────── 공통: 누르면 읽기, 퀴즈, AI 생성, 목록, 따라 말하기 ───────── */
+const LABEL = { vocab: "단어", idiom: "숙어", expr: "표현" };
+const OBJ = { vocab: "단어를", idiom: "숙어를", expr: "표현을" };
+
+// 누르면 발음을 들려주는 글자 (단어·숙어·예문)
+function say(text, cls, ...kids) {
+  return el("button", { type: "button", class: "say " + (cls || ""), title: "누르면 발음을 들려줘요", onclick: (e) => { e.stopPropagation(); sp.speak(text, P.lang); } },
+    el("span", null, kids.length ? kids : text), svg(ICON.speaker));
 }
-function newSet(kind) { R.sess[P.lang][kind] = null; renderPanel(); scrollTo(0, 0); }
-function setHeader(kind, s) {
-  const c = counts(kind);
-  return [
-    el("div", { class: "row between" },
-      el("div", { class: "counts" },
-        el("span", null, "복습 ", el("b", null, c.due)),
-        el("span", null, "새 항목 ", el("b", null, c.fresh)),
-        el("span", null, "익힘 ", el("b", null, c.learned), "/", c.total)),
-      el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`)),
-    el("div", { class: "progress" }, el("span", { style: `width:${s.queue.length ? (s.i / s.queue.length) * 100 : 0}%` })),
-  ];
-}
-function doneCard(kind, s) {
-  return el("div", { class: "card" },
-    el("div", { class: "prompt" },
-      el("span", { class: "tag" }, "세트 완료"),
-      el("div", { class: "mid" }, `${s.queue.length}개 중 ${s.right}개를 맞혔어요.`),
-      el("p", { class: "muted", style: "margin:0" }, "틀린 항목은 5분 뒤, 맞힌 항목은 익힘 단계에 따라 1일·3일·7일 뒤에 다시 나와요.")),
-    el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet(kind) }, "다음 세트")));
-}
+
 function needKeyCard(what) {
   return el("div", { class: "card" },
     el("div", { class: "mid" }, `${what}에는 Claude API 키가 필요해요`),
@@ -208,15 +183,113 @@ function needKeyCard(what) {
     el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { P.tab = "settings"; persist(); render(); } }, "설정으로 가기")));
 }
 
-const GEN_LABEL = { vocab: "단어", expr: "표현", sent: "문장" };
+// 퀴즈 세트: '오늘'은 단어 6 + 숙어 4, 단어·숙어 탭은 각각 10문제
+function quizQueue(key) {
+  if (key === "today") {
+    const v = buildQueue("vocab", 6).map((it) => ({ kind: "vocab", it }));
+    const d = buildQueue("idiom", 4).map((it) => ({ kind: "idiom", it }));
+    return shuffle([...v, ...d]);
+  }
+  return buildQueue(key, 10).map((it) => ({ kind: key, it }));
+}
+function quizSess(key) {
+  const L = R.sess[P.lang], today = dkey(new Date());
+  if (!L[key] || (key === "today" && L[key].date !== today)) L[key] = { queue: quizQueue(key), i: 0, right: 0, st: null, date: today };
+  return L[key];
+}
+function newSet(key) { R.sess[P.lang][key] = null; renderPanel(); }
+const doneKey = () => `${dkey(new Date())}:${P.lang}`;
+function countsLine(kind) {
+  const c = counts(kind);
+  return el("div", { class: "counts" },
+    el("span", null, "복습 ", el("b", null, c.due)),
+    el("span", null, "새 ", LABEL[kind], " ", el("b", null, c.fresh)),
+    el("span", null, "익힘 ", el("b", null, c.learned), "/", c.total));
+}
+
+function quizCard(key) {
+  const s = quizSess(key);
+  if (s.i >= s.queue.length) return quizDone(key, s);
+  const { kind, it } = s.queue[s.i];
+  if (!s.st || s.st.id !== it.id) {
+    const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
+    s.st = { id: it.id, dir: Math.random() < (kind === "idiom" ? 0.75 : 0.6) ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
+  }
+  const st = s.st, ja = isJa(), p = prog(kind, it.id);
+  const showR = ja && (P.showReading || st.chosen);
+  const promptEl = el("div", { class: "prompt" },
+    el("div", { class: "row" },
+      el("span", { class: "tag" + (kind === "idiom" ? " alt" : "") }, `${LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
+      dots(p ? p.b : 0),
+      p ? null : el("span", { class: "small muted" }, "처음 보는 " + LABEL[kind])),
+    st.dir === 0 ? say(it.w, "big tl") : el("div", { class: "big" }, it.m),
+    st.dir === 0 && showR && it.r ? el("div", { class: "rd" }, it.r) : null);
+  const choiceBtns = st.choices.map((c, i) => {
+    let cls = "choice";
+    if (st.chosen) { if (c.id === it.id) cls += " right"; else if (c.id === st.chosen) cls += " wrong"; }
+    const btn = el("button", { class: cls, disabled: st.chosen ? true : null, onclick: () => answerQuiz(key, c.id) },
+      el("span", { class: "k" }, i + 1),
+      st.dir === 0 ? el("span", null, c.m) : el("span", { class: "tl", style: "font-size:18px" }, c.w),
+      st.dir === 1 && ja && (P.showReading || st.chosen) && c.r ? el("span", { class: "rd" }, c.r) : null);
+    // 단어가 보기로 나올 때는 보기마다 발음 버튼을 둔다 (버튼 안에 버튼을 넣을 수 없어서 옆에 둔다)
+    return st.dir === 1 ? el("div", { class: "choice-wrap" }, btn, spk(c.w)) : btn;
+  });
+  let result = null;
+  if (st.chosen) {
+    const ok = st.chosen === it.id;
+    result = el("div", { class: "result " + (ok ? "ok" : "no") },
+      el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
+      el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
+      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null,
+      it.ex ? shadowBox(kind[0] + it.id, it.ex) : null);
+  }
+  const pos = el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`);
+  return el("div", { class: "card", id: "quiz-" + key },
+    el("div", { class: "row between" }, key === "today" ? el("span", { class: "small muted" }, "오늘의 퀴즈") : countsLine(kind), pos),
+    el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
+    promptEl,
+    el("div", { class: "choices" }, choiceBtns),
+    result,
+    st.chosen
+      ? el("div", { class: "row", style: "justify-content:flex-end" }, el("button", { class: "btn", id: "next-btn", onclick: () => nextQuiz(key) }, s.i + 1 >= s.queue.length ? "결과 보기" : "다음"))
+      : ja ? el("label", { class: "small muted row", style: "gap:6px" }, el("input", { type: "checkbox", id: "opt-reading", checked: P.showReading || null, onchange: (e) => { P.showReading = e.target.checked; persist(); renderPanel(); } }), "읽는 법 미리 보기") : null);
+}
+function answerQuiz(key, id) {
+  const s = R.sess[P.lang][key];
+  if (!s?.st || s.st.chosen) return;
+  const { kind, it } = s.queue[s.i];
+  s.st.chosen = id;
+  const ok = id === it.id;
+  if (ok) s.right++;
+  grade(kind, it.id, ok);
+  if (P.autoReveal) sp.speak(it.w, P.lang); // 누른 순간 정답 발음
+  renderPanel();
+  $("#next-btn")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function nextQuiz(key) {
+  const s = R.sess[P.lang][key];
+  s.i++; s.st = null; R.mic?.abort();
+  if (s.i >= s.queue.length && key === "today") { S.stats.done[doneKey()] = { right: s.right, total: s.queue.length }; persist(); }
+  renderPanel();
+  $("#quiz-" + key)?.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+function quizDone(key, s) {
+  return el("div", { class: "card", id: "quiz-" + key },
+    el("div", { class: "prompt" },
+      el("span", { class: "tag" }, key === "today" ? "오늘의 퀴즈 완료" : "세트 완료"),
+      el("div", { class: "mid" }, `${s.queue.length}문제 중 ${s.right}개를 맞혔어요.`),
+      el("p", { class: "muted", style: "margin:0" }, "틀린 건 5분 뒤, 맞힌 건 익힘 단계에 따라 1일·3일·7일 뒤에 다시 나와요.")),
+    el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet(key) }, key === "today" ? "한 세트 더 풀기" : "다음 세트")));
+}
+
 function genBox(kind) {
   if (!K.anthropicKey) return null;
   const key = P.lang + kind, st = R.gen[key] || {};
   const go = () => generate(kind, (R.topic[key] || "").trim());
   return el("details", { class: "box", open: R.open["gen" + kind] || st.busy || st.msg ? true : null, ontoggle: (e) => { R.open["gen" + kind] = e.target.open; } },
-    el("summary", null, `AI로 ${GEN_LABEL[kind]} 더 만들기`),
+    el("summary", null, `AI로 ${LABEL[kind]} 더 만들기`),
     el("div", { class: "boxbody" },
-      el("p", { class: "small muted", style: "margin:0" }, `관심 있는 주제를 적으면 그에 맞는 ${langKo()} ${GEN_LABEL[kind]}을 만들어 학습 목록에 추가해요.`),
+      el("p", { class: "small muted", style: "margin:0" }, `관심 있는 주제를 적으면 그에 맞는 ${langKo()} ${OBJ[kind]} 만들어 학습 목록에 추가해요.`),
       el("div", { class: "row" },
         el("input", { type: "text", id: "gen-" + kind, placeholder: "주제 (예: 병원, 회식, 여행, 쇼핑)", value: R.topic[key] || "", oninput: (e) => { R.topic[key] = e.target.value; },
           onkeydown: (e) => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) go(); } }),
@@ -228,7 +301,7 @@ async function generate(kind, topic) {
   if (R.gen[key]?.busy) return;
   R.gen[key] = { busy: true, msg: "Claude가 만드는 중이에요… (10~40초)" };
   renderPanel();
-  const known = pool(kind, lang).map((it) => it.w || it.t || it.full).slice(0, 150);
+  const known = pool(kind, lang).map((it) => it.w || it.t).slice(0, 150);
   const { prompt, schema } = ai.generationRequest(kind, lang, topic, known);
   try {
     const out = await ai.askJSON({ apiKey: K.anthropicKey, model: K.model, system: "You write accurate, natural language-learning material for Korean native speakers.", messages: [{ role: "user", content: prompt }], schema, effort: "medium", maxTokens: 16000 });
@@ -237,18 +310,17 @@ async function generate(kind, topic) {
     const stamp = Date.now().toString(36);
     const items = arr.map((o, i) => {
       const id = "c" + stamp + i;
-      if (kind === "vocab") { const it = { id, w: s(o.w), m: s(o.m), ex: s(o.ex), exk: s(o.exk) }; if (lang === "ja") { it.r = s(o.r); it.exr = s(o.exr); } return it.w && it.m ? it : null; }
       if (kind === "expr") { const it = { id, t: s(o.t), ko: s(o.ko), sit: s(o.sit) || "AI", note: s(o.note) }; if (lang === "ja") it.r = s(o.r); return it.t && it.ko ? it : null; }
-      const x = Array.isArray(o.x) ? o.x.map(s).filter(Boolean).slice(0, 3) : [];
-      if (lang === "ja") { const tk = Array.isArray(o.tk) ? o.tk.map(s).filter(Boolean) : []; return s(o.ko) && tk.length >= 2 ? { id, ko: s(o.ko), tk, x, end: s(o.end) || "。", r: s(o.r) } : null; }
-      return s(o.ko) && s(o.s) ? { id, ko: s(o.ko), s: s(o.s), x } : null;
+      const it = { id, w: s(o.w), m: s(o.m), ex: s(o.ex), exk: s(o.exk) };
+      if (lang === "ja") { it.r = s(o.r); it.exr = s(o.exr); }
+      return it.w && it.m ? it : null;
     }).filter(Boolean);
-    const have = new Set(pool(kind, lang).map((it) => it.w || it.t || it.full));
-    const fresh = items.filter((it) => !have.has(it.w || it.t || it.s));
+    const have = new Set(pool(kind, lang).map((it) => it.w || it.t));
+    const fresh = items.filter((it) => !have.has(it.w || it.t));
     S.custom[lang][kind] = [...fresh, ...S.custom[lang][kind]];
     persist();
     R.sess[lang][kind] = null;
-    R.gen[key] = { msg: fresh.length ? `새 ${GEN_LABEL[kind]} ${fresh.length}개를 추가했어요. 지금 세트에 먼저 나와요.` : "겹치지 않는 항목이 없었어요. 다른 주제로 해 보세요." };
+    R.gen[key] = { msg: fresh.length ? `새 ${LABEL[kind]} ${fresh.length}개를 추가했어요. 다음 문제부터 먼저 나와요.` : "겹치지 않는 항목이 없었어요. 다른 주제로 해 보세요." };
   } catch (e) {
     R.gen[key] = { msg: e.message, err: true };
   }
@@ -257,13 +329,13 @@ async function generate(kind, topic) {
 function listBox(kind) {
   const items = pool(kind);
   return el("details", { class: "box", open: R.open["list" + kind] || null, ontoggle: (e) => { R.open["list" + kind] = e.target.open; } },
-    el("summary", null, `전체 ${GEN_LABEL[kind]} 보기 (${items.length})`),
+    el("summary", null, `전체 ${LABEL[kind]} 보기 (${items.length})`),
     el("div", { class: "boxbody" }, el("ul", { class: "items" }, items.map((it) => {
-      const p = prog(kind, it.id);
+      const p = prog(kind, it.id), word = it.w || it.t;
       return el("li", null,
-        el("div", { class: "w tl" }, it.w || it.t || it.full, isJa() && it.r ? el("span", { class: "rd" }, " ", it.r) : null),
+        el("div", { class: "w" }, say(word, "tl lw"), isJa() && it.r ? el("span", { class: "rd" }, it.r) : null),
         el("div", { class: "m" }, it.m || it.ko),
-        el("div", { class: "side" }, el("div", { class: "row", style: "gap:8px" }, dots(p ? p.b : 0), spk(it.w || it.t || it.full)),
+        el("div", { class: "side" }, dots(p ? p.b : 0),
           it.mine ? el("span", { class: "row" }, el("span", { class: "mine" }, "내 항목"), el("button", { class: "link", onclick: () => removeCustom(kind, it.id) }, "삭제")) : null));
     }))));
 }
@@ -324,78 +396,59 @@ function scoreView(res, target) {
   return el("div", { class: "score" },
     el("div", { class: "score-top" },
       el("div", { class: "score-main " + band(m) }, el("b", null, m), el("span", null, "일치율 (대략)"))),
-    el("div", { class: "small muted" }, "들린 문장: ", el("span", { class: "tl" }, res.text)),
-    el("div", { class: "small muted" }, "설정에서 Azure 키를 넣으면 단어별 발음 점수를 받을 수 있어요."));
+    el("div", { class: "small muted" }, "들린 문장: ", el("span", { class: "tl" }, res.text)));
 }
 
-/* ───────── 단어 ───────── */
-function renderVocab() {
-  const s = sess("vocab");
+/* ───────── 오늘 (첫 화면) ───────── */
+function idiomOfDay() {
+  const list = pool("idiom");
+  if (!list.length) return null;
+  const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / DAY);
+  return list[day % list.length];
+}
+function renderToday() {
   const wrap = el("div", { class: "stack" });
-  if (s.i >= s.queue.length) { wrap.append(doneCard("vocab", s), genBox("vocab") || "", listBox("vocab")); return wrap; }
-  const it = s.queue[s.i];
-  if (!s.st || s.st.id !== it.id) {
-    const others = shuffle(pool("vocab").filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
-    s.st = { id: it.id, dir: Math.random() < 0.6 ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
-  }
-  const st = s.st, ja = isJa(), p = prog("vocab", it.id);
-  const showR = ja && (P.showReading || st.chosen);
-  const promptEl = st.dir === 0
-    ? el("div", { class: "prompt" },
-        el("div", { class: "row" }, el("span", { class: "tag" }, "뜻 고르기"), dots(p ? p.b : 0), p ? null : el("span", { class: "small muted" }, "처음 보는 단어")),
-        el("div", { class: "row", style: "gap:12px" }, el("div", { class: "big tl" }, it.w), spk(it.w)),
-        showR && it.r ? el("div", { class: "rd" }, it.r) : null)
-    : el("div", { class: "prompt" },
-        el("div", { class: "row" }, el("span", { class: "tag" }, `${langKo()}로 고르기`), dots(p ? p.b : 0)),
-        el("div", { class: "big" }, it.m));
-  const choiceBtns = st.choices.map((c, i) => {
-    let cls = "choice";
-    if (st.chosen) { if (c.id === it.id) cls += " right"; else if (c.id === st.chosen) cls += " wrong"; }
-    const btn = el("button", { class: cls, disabled: st.chosen ? true : null, onclick: () => answerVocab(c.id) },
-      el("span", { class: "k" }, i + 1),
-      st.dir === 0 ? el("span", null, c.m) : el("span", { class: "tl", style: "font-size:18px" }, c.w),
-      st.dir === 1 && ja && (P.showReading || st.chosen) && c.r ? el("span", { class: "rd" }, c.r) : null);
-    // 단어가 보기로 나올 때는 보기마다 발음을 들어 볼 수 있게 한다 (버튼 안에 버튼을 넣을 수 없어서 옆에 둔다)
-    return st.dir === 1 ? el("div", { class: "choice-wrap" }, btn, spk(c.w)) : btn;
-  });
-  let result = null;
-  if (st.chosen) {
-    const ok = st.chosen === it.id;
-    result = el("div", { class: "result " + (ok ? "ok" : "no") },
-      el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
-      el("div", { class: "example" }, spk(it.w), el("div", null, el("span", { class: "tl", style: "font-size:18px" }, it.w), ja && it.r ? el("span", { class: "rd" }, "  ", it.r) : null, " — ", it.m)),
-      it.ex ? el("div", { class: "example" }, spk(it.ex), el("div", null,
-        el("div", { class: "tl", style: "font-size:17px" }, it.ex),
-        ja && it.exr ? el("div", { class: "rd" }, it.exr) : null,
-        el("div", { class: "small muted" }, it.exk))) : null,
-      it.ex ? shadowBox("v" + it.id, it.ex) : null);
-  }
+  const d = new Date(), done = S.stats.done[doneKey()], it = idiomOfDay();
+  const openKey = dkey(d) + P.lang, open = R.open.idiomDay === openKey;
   wrap.append(
-    el("div", { class: "card" }, setHeader("vocab", s), promptEl, el("div", { class: "choices" }, choiceBtns), result,
-      el("div", { class: "row between" },
-        ja ? el("label", { class: "small muted row", style: "gap:6px" }, el("input", { type: "checkbox", id: "opt-reading", checked: P.showReading || null, onchange: (e) => { P.showReading = e.target.checked; persist(); renderPanel(); } }), "읽는 법 미리 보기") : el("span"),
-        st.chosen ? el("button", { class: "btn", id: "next-btn", onclick: nextVocab }, "다음") : null)),
-    genBox("vocab") || "", listBox("vocab"));
+    el("div", { class: "today-head" },
+      el("h2", null, `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`),
+      el("span", { class: "small muted" }, done ? `오늘의 퀴즈 완료 · ${done.total}문제 중 ${done.right}개 정답` : "오늘의 퀴즈 10문제 · 약 3분")),
+    it ? el("div", { class: "card idiom-day" },
+      el("div", { class: "row between" }, el("span", { class: "tag alt" }, "오늘의 숙어"), el("span", { class: "small muted" }, "누르면 발음이 나와요")),
+      say(it.w, "mid tl"),
+      isJa() && it.r ? el("div", { class: "rd" }, it.r) : null,
+      open
+        ? [el("div", { class: "idiom-mean" }, it.m),
+           it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), isJa() && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null]
+        : el("div", { class: "row" }, el("button", { class: "btn ghost sm", onclick: () => { R.open.idiomDay = openKey; if (P.autoReveal) sp.speak(it.w, P.lang); renderPanel(); } }, "뜻 보기"))) : null,
+    quizCard("today"),
+    el("button", { type: "button", class: "card link-card", onclick: () => { P.tab = "chat"; render(); scrollTo(0, 0); } },
+      el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI와 대화 연습")),
+      el("span", { class: "small muted" }, `상황을 골라 ${langKo()}로 짧게 대화해요`)));
   return wrap;
 }
-function answerVocab(id) {
-  const s = R.sess[P.lang].vocab, it = s.queue[s.i];
-  if (s.st.chosen) return;
-  s.st.chosen = id;
-  const ok = id === it.id;
-  if (ok) s.right++;
-  grade("vocab", it.id, ok);
-  renderPanel();
-  if (P.autoReveal) sp.speak(it.w, P.lang);
-  $("#next-btn")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+/* ───────── 단어 · 숙어 ───────── */
+function renderQuizTab(kind) {
+  return el("div", { class: "stack" }, quizCard(kind), genBox(kind) || "", listBox(kind));
 }
-function nextVocab() { const s = R.sess[P.lang].vocab; s.i++; s.st = null; R.mic?.abort(); renderPanel(); }
 
 /* ───────── 일상 표현 ───────── */
+function exprSess() {
+  const L = R.sess[P.lang];
+  if (!L.expr) L.expr = { queue: buildQueue("expr"), i: 0, right: 0, st: null };
+  return L.expr;
+}
 function renderExpr() {
-  const s = sess("expr");
+  const s = exprSess();
   const wrap = el("div", { class: "stack" });
-  if (s.i >= s.queue.length) { wrap.append(doneCard("expr", s), genBox("expr") || "", listBox("expr")); return wrap; }
+  if (s.i >= s.queue.length) {
+    wrap.append(el("div", { class: "card" },
+      el("div", { class: "prompt" }, el("span", { class: "tag" }, "세트 완료"), el("div", { class: "mid" }, `${s.queue.length}개 중 ${s.right}개를 알고 있었어요.`)),
+      el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet("expr") }, "다음 세트"))), genBox("expr") || "", listBox("expr"));
+    return wrap;
+  }
   const it = s.queue[s.i], p = prog("expr", it.id);
   if (!s.st || s.st.id !== it.id) s.st = { id: it.id, open: false };
   const front = el("div", { class: "flash" },
@@ -403,16 +456,19 @@ function renderExpr() {
     el("div", { class: "mid" }, it.ko),
     el("div", { class: "small muted" }, `${langKo()}로 어떻게 말할까요? 먼저 소리 내어 말해 보고 확인하세요.`));
   const back = !s.st.open
-    ? el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { s.st.open = true; renderPanel(); if (P.autoReveal) sp.speak(it.t, P.lang); } }, "정답 보기"))
+    ? el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { s.st.open = true; if (P.autoReveal) sp.speak(it.t, P.lang); renderPanel(); } }, "정답 보기"))
     : el("div", { class: "flash" },
-        el("div", { class: "row", style: "gap:12px" }, el("div", { class: "big tl", style: "font-size:clamp(24px,6.5vw,32px)" }, it.t), spk(it.t)),
+        say(it.t, "big tl expr-say"),
         isJa() && it.r ? el("div", { class: "rd" }, it.r) : null,
         it.note ? el("div", { class: "note" }, el("b", null, "팁 "), it.note) : null,
         shadowBox("e" + it.id, it.t),
         el("div", { class: "row" },
           el("button", { class: "btn ghost", onclick: () => rateExpr(false) }, "아직 헷갈려요"),
           el("button", { class: "btn", onclick: () => rateExpr(true) }, "알고 있었어요")));
-  wrap.append(el("div", { class: "card" }, setHeader("expr", s), front, back), genBox("expr") || "", listBox("expr"));
+  wrap.append(el("div", { class: "card" },
+    el("div", { class: "row between" }, countsLine("expr"), el("span", { class: "small muted" }, `${s.i + 1} / ${s.queue.length}`)),
+    el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
+    front, back), genBox("expr") || "", listBox("expr"));
   return wrap;
 }
 function rateExpr(ok) {
@@ -421,48 +477,6 @@ function rateExpr(ok) {
   grade("expr", it.id, ok);
   s.i++; s.st = null; R.mic?.abort();
   renderPanel();
-}
-
-/* ───────── 문장 조립 ───────── */
-function renderSent() {
-  const s = sess("sent");
-  const wrap = el("div", { class: "stack" });
-  if (s.i >= s.queue.length) { wrap.append(doneCard("sent", s), genBox("sent") || ""); return wrap; }
-  const it = s.queue[s.i], p = prog("sent", it.id);
-  if (!s.st || s.st.id !== it.id) s.st = { id: it.id, bank: shuffle([...it.tk, ...(it.x || [])].map((t, k) => ({ t, k }))), picked: [], checked: null };
-  const st = s.st, tok = (k) => st.bank.find((b) => b.k === k);
-  const answer = el("div", { class: "answer", "aria-label": "내가 만든 문장" },
-    st.picked.length
-      ? st.picked.map((k) => el("button", { class: "chip tl", disabled: st.checked !== null || null, onclick: () => { st.picked = st.picked.filter((x) => x !== k); renderPanel(); } }, tok(k).t))
-      : el("span", { class: "small muted", style: "align-self:center" }, "아래 조각을 눌러 문장을 만드세요"));
-  const bank = el("div", { class: "bank" }, st.bank.map((b) => el("button", { class: "chip tl" + (st.picked.includes(b.k) ? " used" : ""), disabled: st.checked !== null || st.picked.includes(b.k) || null, onclick: () => { st.picked.push(b.k); renderPanel(); } }, b.t)));
-  const result = st.checked === null ? null : el("div", { class: "result " + (st.checked ? "ok" : "no") },
-    el("div", { class: "head" }, st.checked ? "정답이에요" : "정답은 이거예요"),
-    el("div", { class: "example" }, spk(it.full), el("div", null,
-      el("div", { class: "tl", style: "font-size:19px" }, it.full),
-      isJa() && it.r ? el("div", { class: "rd" }, it.r) : null)),
-    shadowBox("s" + it.id, it.full));
-  wrap.append(el("div", { class: "card" }, setHeader("sent", s),
-    el("div", { class: "prompt" }, el("div", { class: "row" }, el("span", { class: "tag" }, "이 문장을 만들어 보세요"), dots(p ? p.b : 0), it.mine ? el("span", { class: "mine" }, "내 항목") : null),
-      el("div", { class: "mid" }, it.ko)),
-    answer, bank, result,
-    el("div", { class: "row between" },
-      st.checked === null ? el("button", { class: "btn ghost sm", disabled: !st.picked.length || null, onclick: () => { st.picked = []; renderPanel(); } }, "다시 놓기") : el("span"),
-      st.checked === null
-        ? el("button", { class: "btn", disabled: !st.picked.length || null, onclick: checkSent }, "확인")
-        : el("button", { class: "btn", onclick: () => { s.i++; s.st = null; R.mic?.abort(); renderPanel(); } }, "다음"))),
-    genBox("sent") || "");
-  return wrap;
-}
-function checkSent() {
-  const s = R.sess[P.lang].sent, it = s.queue[s.i], st = s.st;
-  const mine = st.picked.map((k) => st.bank.find((b) => b.k === k).t);
-  const norm = (a) => (P.lang === "en" ? a.join(" ").toLowerCase().replace(/[.,?!]/g, "").replace(/\s+/g, " ").trim() : a.join("").replace(/[、。？]/g, ""));
-  st.checked = norm(mine) === norm(it.tk);
-  if (st.checked) s.right++;
-  grade("sent", it.id, st.checked);
-  renderPanel();
-  if (P.autoReveal) sp.speak(it.full, P.lang);
 }
 
 /* ───────── AI 회화 ───────── */
@@ -563,6 +577,7 @@ function saveBtn(it) {
 }
 function renderChat() {
   const lang = P.lang, c = chatState(), wrap = el("div", { class: "stack" });
+  wrap.append(el("button", { type: "button", class: "link back", onclick: () => { R.mic?.abort(); P.tab = "today"; render(); } }, "← 오늘로 돌아가기"));
   if (!K.anthropicKey) { wrap.append(needKeyCard("AI 회화")); return wrap; }
   if (!c) {
     const pk = R.pick[lang];
@@ -687,7 +702,7 @@ function renderSettings() {
     toggle("p-reading", "일본어 읽는 법(후리가나) 표시", P.showReading, (v) => { P.showReading = v; persist(); }),
     toggle("p-autosend", "회화에서 말하면 바로 보내기", P.autoSend, (v) => { P.autoSend = v; persist(); }),
     toggle("p-autospeak", "AI 답변 자동으로 읽어 주기", P.autoSpeak, (v) => { P.autoSpeak = v; persist(); }),
-    toggle("p-autoreveal", "단어·표현·문장 정답이 나오면 자동으로 읽어 주기", P.autoReveal, (v) => { P.autoReveal = v; persist(); }),
+    toggle("p-autoreveal", "답을 고르거나 정답을 열면 발음 읽어 주기", P.autoReveal, (v) => { P.autoReveal = v; persist(); }),
     toggle("p-slow", "천천히 읽기", P.slow, (v) => { P.slow = v; persist(); sp.configure({ ...K, slow: v }); sp.clearAudioCache(); }),
     el("div", { class: "row" },
       el("button", { class: "btn sm ghost", onclick: async () => {
@@ -705,7 +720,7 @@ function renderSettings() {
     msgLine("voice")));
 
   const total = ["ja", "en"].reduce((n, l) => n + Object.keys(S.prog[l]).length, 0);
-  const mine = ["ja", "en"].reduce((n, l) => n + S.custom[l].vocab.length + S.custom[l].expr.length + S.custom[l].sent.length, 0);
+  const mine = ["ja", "en"].reduce((n, l) => n + S.custom[l].vocab.length + S.custom[l].idiom.length + S.custom[l].expr.length, 0);
   wrap.append(el("div", { class: "card tight" },
     el("h2", null, "데이터"),
     el("p", { class: "small muted", style: "margin:0" }, `학습 기록 ${total}개, 내가 추가한 항목 ${mine}개가 이 기기에 저장돼 있어요. 휴대폰을 바꾸거나 브라우저 데이터를 지우기 전에 백업해 두세요. 백업 파일에는 API 키가 들어가지 않아요.`),
@@ -750,15 +765,15 @@ async function pickImport(e) {
 $("#lang-ja").onclick = () => { R.mic?.abort(); P.lang = "ja"; persist(); render(); };
 $("#lang-en").onclick = () => { R.mic?.abort(); P.lang = "en"; persist(); render(); };
 document.addEventListener("keydown", (e) => {
-  if (P.tab !== "vocab" || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
-  const s = R.sess[P.lang].vocab;
+  if (!["today", "vocab", "idiom"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  const key = P.tab, s = R.sess[P.lang][key];
   if (!s?.st) return;
-  if (!s.st.chosen && /^[1-4]$/.test(e.key)) { const c = s.st.choices[+e.key - 1]; if (c) answerVocab(c.id); }
-  else if (s.st.chosen && e.key === "Enter") nextVocab();
+  if (!s.st.chosen && /^[1-4]$/.test(e.key)) { const c = s.st.choices[+e.key - 1]; if (c) answerQuiz(key, c.id); }
+  else if (s.st.chosen && e.key === "Enter") nextQuiz(key);
 });
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); R.installEvt = e; if (P.tab === "settings") renderPanel(); });
 if ("speechSynthesis" in window) try { speechSynthesis.getVoices(); } catch {}
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js").catch(() => {});
 store.requestPersist();
-P.tab = "chat"; // 앱을 열면 항상 AI 회화부터
+P.tab = "today"; // 앱을 열면 항상 '오늘'의 숙어와 퀴즈부터
 render();
