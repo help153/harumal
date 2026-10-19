@@ -2,7 +2,7 @@
 // 앱 파일은 네트워크를 먼저 시도하고(업데이트 반영), 안 되면 저장본을 쓴다.
 // API 호출(Claude, Azure)과 다른 사이트 요청은 건드리지 않는다.
 
-const CACHE = "harumal-v5";
+const CACHE = "harumal-v6";
 const SHELL = [
   "./",
   "./index.html",

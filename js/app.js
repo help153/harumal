@@ -85,16 +85,6 @@ function pool(kind, lang = P.lang) {
 }
 const pkey = (kind, id) => kind[0] + ":" + id;
 const prog = (kind, id, lang = P.lang) => S.prog[lang][pkey(kind, id)];
-function counts(kind) {
-  const now = Date.now(); let due = 0, fresh = 0, learned = 0;
-  const items = pool(kind);
-  for (const it of items) {
-    const p = prog(kind, it.id);
-    if (!p) fresh++;
-    else { if (p.due <= now) due++; if (p.b >= 4) learned++; }
-  }
-  return { due, fresh, learned, total: items.length };
-}
 function buildQueue(kind, size = 10) {
   const now = Date.now(), items = pool(kind), Pg = (it) => prog(kind, it.id);
   const due = items.filter((it) => Pg(it) && Pg(it).due <= now).sort((a, b) => Pg(a).due - Pg(b).due);
@@ -130,7 +120,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.19b";
+const APP_VERSION = "2026.10.19c";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -139,13 +129,7 @@ const TABS = [
   { id: "settings", label: "설정", icon: ICON.gear },
 ];
 function renderStats() {
-  const today = S.stats.days[dkey(new Date())] || 0;
-  const due = counts("vocab").due + counts("idiom").due + counts("expr").due;
-  $("#statline").replaceChildren(
-    el("span", null, "오늘 ", el("b", null, today), "회"),
-    el("span", null, el("b", null, streak()), "일 연속"),
-    el("span", null, langKo(), " 복습 ", el("b", null, due), "개")
-  );
+  $("#streak").textContent = `${streak()}일 연속`;
 }
 function renderChrome() {
   document.body.dataset.lang = P.lang;
@@ -199,13 +183,6 @@ function quizSess(key) {
 }
 function newSet(key) { R.sess[P.lang][key] = null; renderPanel(); }
 const doneKey = () => `${dkey(new Date())}:${P.lang}`;
-function countsLine(kind) {
-  const c = counts(kind);
-  return el("div", { class: "counts" },
-    el("span", null, "복습 ", el("b", null, c.due)),
-    el("span", null, "새 ", LABEL[kind], " ", el("b", null, c.fresh)),
-    el("span", null, "익힘 ", el("b", null, c.learned), "/", c.total));
-}
 
 function quizCard(key) {
   const s = quizSess(key);
@@ -246,7 +223,7 @@ function quizCard(key) {
   }
   const pos = el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`);
   return el("div", { class: "card", id: "quiz-" + key },
-    el("div", { class: "row between" }, key === "today" ? el("span", { class: "small muted" }, "오늘의 퀴즈") : countsLine(kind), pos),
+    el("div", { class: "row between" }, el("span", { class: "small muted" }, key === "today" ? "오늘의 퀴즈" : `${LABEL[kind]} 퀴즈`), pos),
     el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
     promptEl,
     el("div", { class: "choices" }, choiceBtns),
@@ -475,7 +452,7 @@ function renderExpr() {
           el("button", { class: "btn ghost", onclick: () => rateExpr(false) }, "아직 헷갈려요"),
           el("button", { class: "btn", onclick: () => rateExpr(true) }, "알고 있었어요")));
   wrap.append(el("div", { class: "card" },
-    el("div", { class: "row between" }, countsLine("expr"), el("span", { class: "small muted" }, `${s.i + 1} / ${s.queue.length}`)),
+    el("div", { class: "row between" }, el("span", { class: "small muted" }, "일상 표현"), el("span", { class: "small muted" }, `${s.i + 1} / ${s.queue.length}`)),
     el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
     front, back), genBox("expr") || "", listBox("expr"));
   return wrap;

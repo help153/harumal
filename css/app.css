@@ -48,14 +48,15 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .brand { display: flex; align-items: center; gap: 10px; }
 .mark { width: 36px; height: 36px; border-radius: 9px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-family: var(--f-ja); font-weight: 700; font-size: 18px; transition: background .25s; }
 .brand h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
-.brand p { margin: 0; font-size: 12px; color: var(--muted); }
+.streak { font-size: 12.5px; font-weight: 600; color: var(--note); background: var(--note-soft); padding: 2px 9px; border-radius: 99px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .seg { display: inline-flex; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
-.seg button { border: 0; background: transparent; padding: 7px 14px; border-radius: 7px; font-weight: 600; color: var(--muted); }
+.seg button { border: 0; background: transparent; padding: 6px 10px; border-radius: 7px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.top .seg { flex: 0 0 auto; }
+.top { flex-wrap: nowrap; }
+.brand { min-width: 0; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
 .seg .ja { font-family: var(--f-ja); }
-.seg .en { font-family: var(--f-en); font-size: 16px; }
-.statline { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.statline b { color: var(--ink); font-weight: 600; }
+.seg .en { font-family: var(--f-en); font-size: 15px; }
 
 /* 하단 탭 바 */
 .nav {
@@ -79,8 +80,6 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .card h2 { margin: 0; font-size: 16px; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .between { justify-content: space-between; }
-.counts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.counts b { color: var(--ink); }
 .progress { height: 4px; background: var(--sunk); border-radius: 4px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
 .prompt { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
