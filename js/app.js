@@ -130,7 +130,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.19";
+const APP_VERSION = "2026.10.19b";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -213,7 +213,9 @@ function quizCard(key) {
   const { kind, it } = s.queue[s.i];
   if (!s.st || s.st.id !== it.id) {
     const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
-    s.st = { id: it.id, dir: Math.random() < (kind === "idiom" ? 0.75 : 0.6) ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
+    // 일본어는 쉽게: 대부분 '단어 보고 뜻 고르기'로 내고, 한국어 보고 일본어 고르기는 가끔만
+    const easyDir = P.lang === "ja" ? (kind === "idiom" ? 0.9 : 0.85) : (kind === "idiom" ? 0.75 : 0.6);
+    s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
   const st = s.st, ja = isJa(), p = prog(kind, it.id);
   const showR = ja && (P.showReading || st.chosen);
@@ -240,8 +242,7 @@ function quizCard(key) {
     result = el("div", { class: "result " + (ok ? "ok" : "no") },
       el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
       el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
-      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null,
-      it.ex ? shadowBox(kind[0] + it.id, it.ex) : null);
+      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null);
   }
   const pos = el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`);
   return el("div", { class: "card", id: "quiz-" + key },
@@ -251,7 +252,8 @@ function quizCard(key) {
     el("div", { class: "choices" }, choiceBtns),
     result,
     st.chosen
-      ? el("div", { class: "row", style: "justify-content:flex-end" }, el("button", { class: "btn", id: "next-btn", onclick: () => nextQuiz(key) }, s.i + 1 >= s.queue.length ? "결과 보기" : "다음"))
+      // 다음 버튼은 화면 아래(탭 바 바로 위)에 고정해서 스크롤 없이 누를 수 있게 한다
+      ? [el("div", { class: "next-spacer" }), el("div", { class: "next-bar" }, el("button", { class: "btn", id: "next-btn", onclick: () => nextQuiz(key) }, s.i + 1 >= s.queue.length ? "결과 보기" : "다음 →"))]
       : ja ? el("label", { class: "small muted row", style: "gap:6px" }, el("input", { type: "checkbox", id: "opt-reading", checked: P.showReading || null, onchange: (e) => { P.showReading = e.target.checked; persist(); renderPanel(); } }), "읽는 법 미리 보기") : null);
 }
 function answerQuiz(key, id) {
@@ -264,7 +266,14 @@ function answerQuiz(key, id) {
   grade(kind, it.id, ok);
   if (P.autoReveal) sp.speak(it.w, P.lang); // 누른 순간 정답 발음
   renderPanel();
-  $("#next-btn")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // 정답 설명이 고정된 다음 버튼에 가려지면, 문제가 화면 위로 넘어가지 않는 만큼만 올려 준다
+  requestAnimationFrame(() => {
+    const card = $("#quiz-" + key), target = card?.querySelector(".result"), bar = $(".next-bar .btn");
+    if (!card || !target || !bar) return;
+    const hidden = target.getBoundingClientRect().bottom - (bar.getBoundingClientRect().top - 8);
+    const room = card.getBoundingClientRect().top - 12;
+    if (hidden > 0 && room > 0) scrollBy({ top: Math.min(hidden, room), behavior: "smooth" });
+  });
 }
 function nextQuiz(key) {
   const s = R.sess[P.lang][key];
@@ -415,13 +424,13 @@ function renderToday() {
       el("h2", null, `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`),
       el("span", { class: "small muted" }, done ? `오늘의 퀴즈 완료 · ${done.total}문제 중 ${done.right}개 정답` : "오늘의 퀴즈 10문제 · 약 3분")),
     it ? el("div", { class: "card idiom-day" },
-      el("div", { class: "row between" }, el("span", { class: "tag alt" }, "오늘의 숙어"), el("span", { class: "small muted" }, "누르면 발음이 나와요")),
-      say(it.w, "mid tl"),
-      isJa() && it.r ? el("div", { class: "rd" }, it.r) : null,
+      el("div", { class: "row between" },
+        el("div", { class: "idiom-word" }, el("span", { class: "tag alt" }, "오늘의 숙어"), say(it.w, "mid tl"), isJa() && it.r ? el("span", { class: "rd" }, it.r) : null),
+        open ? null : el("button", { class: "btn ghost sm", onclick: () => { R.open.idiomDay = openKey; if (P.autoReveal) sp.speak(it.w, P.lang); renderPanel(); } }, "뜻 보기")),
       open
         ? [el("div", { class: "idiom-mean" }, it.m),
            it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), isJa() && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null]
-        : el("div", { class: "row" }, el("button", { class: "btn ghost sm", onclick: () => { R.open.idiomDay = openKey; if (P.autoReveal) sp.speak(it.w, P.lang); renderPanel(); } }, "뜻 보기"))) : null,
+        : null) : null,
     quizCard("today"),
     el("button", { type: "button", class: "card link-card", onclick: () => { P.tab = "chat"; render(); scrollTo(0, 0); } },
       el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI와 대화 연습")),

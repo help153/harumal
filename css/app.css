@@ -106,17 +106,22 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .icon-btn { border: 1px solid var(--line); background: var(--surface); width: 38px; height: 38px; border-radius: 50%; display: inline-grid; place-items: center; color: var(--accent); flex: 0 0 auto; }
 .icon-btn:hover { background: var(--accent-soft); }
 
-.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 440px) { .choices { grid-template-columns: 1fr; } }
-.choice { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; min-height: 56px; display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: border-color .15s, background .15s; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.choice { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px; min-height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow-wrap: anywhere; transition: border-color .15s, background .15s; }
 .choice:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
 .choice .k { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .choice.right { border-color: var(--good); background: var(--good-soft); }
 .choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
 .choice:disabled { cursor: default; }
-.choice-wrap { position: relative; display: flex; }
-.choice-wrap .choice { flex: 1; padding-right: 54px; }
-.choice-wrap .icon-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+.choice-wrap { position: relative; display: flex; min-width: 0; }
+.choice-wrap .choice { flex: 1; min-width: 0; padding-right: 44px; }
+.choice-wrap .icon-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; }
+
+/* 답을 고르면 나타나는 다음 버튼: 탭 바 바로 위에 고정 */
+.next-spacer { height: 60px; }
+.next-bar { position: fixed; left: 0; right: 0; z-index: 9; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 10px); display: flex; justify-content: center; padding-inline: 16px; pointer-events: none; }
+.next-bar .btn { pointer-events: auto; width: 100%; max-width: 648px; min-height: 52px; font-size: 16px; box-shadow: 0 6px 20px rgb(0 0 0 / .28); }
+[id^="quiz-"] { scroll-margin-top: 12px; }
 
 .result { border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .result.ok { background: var(--good-soft); }
@@ -144,7 +149,8 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 /* 오늘 */
 .today-head { display: flex; flex-direction: column; gap: 2px; }
 .today-head h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
-.card.idiom-day { gap: 8px; }
+.card.idiom-day { gap: 8px; padding-block: 14px; }
+.idiom-word { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .idiom-mean { font-size: 17px; font-weight: 600; }
 .link-card { text-align: left; gap: 4px; font: inherit; color: inherit; cursor: pointer; }
 .link-card:hover { border-color: var(--accent); }
