@@ -13,7 +13,7 @@ const R = {
   sess: { ja: {}, en: {} },
   chat: { ja: null, en: null },
   pick: { ja: { sc: "cafe", lv: 0 }, en: { sc: "cafe", lv: 1 } },
-  open: {}, topic: {}, gen: {}, shadow: {}, mic: null, msg: {}, pendingImport: null, installEvt: null,
+  open: {}, topic: {}, gen: {}, explain: {}, shadow: {}, mic: null, msg: {}, pendingImport: null, installEvt: null,
 };
 const IV = [0, 1, 3, 7, 14, 30, 60]; // 익힘 단계별 다음 복습까지 일 수
 const DAY = 864e5;
@@ -120,7 +120,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.19c";
+const APP_VERSION = "2026.10.19d";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -194,44 +194,89 @@ function quizCard(key) {
     const easyDir = P.lang === "ja" ? (kind === "idiom" ? 0.9 : 0.85) : (kind === "idiom" ? 0.75 : 0.6);
     s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
-  const st = s.st, ja = isJa(), p = prog(kind, it.id);
-  const showR = ja && (P.showReading || st.chosen);
+  const st = s.st, ja = isJa();
   const promptEl = el("div", { class: "prompt" },
-    el("div", { class: "row" },
-      el("span", { class: "tag" + (kind === "idiom" ? " alt" : "") }, `${LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
-      dots(p ? p.b : 0),
-      p ? null : el("span", { class: "small muted" }, "처음 보는 " + LABEL[kind])),
+    el("span", { class: "tag" + (kind === "idiom" ? " alt" : "") }, `${LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
     st.dir === 0 ? say(it.w, "big tl") : el("div", { class: "big" }, it.m),
-    st.dir === 0 && showR && it.r ? el("div", { class: "rd" }, it.r) : null);
+    st.dir === 0 && ja && (P.showReading || st.chosen) && it.r ? el("div", { class: "rd" }, it.r) : null);
+  // 답을 고른 뒤에는 보기마다 단어와 뜻을 함께 보여 줘서 오답 보기까지 배울 수 있게 한다. 누르면 발음.
   const choiceBtns = st.choices.map((c, i) => {
     let cls = "choice";
-    if (st.chosen) { if (c.id === it.id) cls += " right"; else if (c.id === st.chosen) cls += " wrong"; }
-    const btn = el("button", { class: cls, disabled: st.chosen ? true : null, onclick: () => answerQuiz(key, c.id) },
-      el("span", { class: "k" }, i + 1),
-      st.dir === 0 ? el("span", null, c.m) : el("span", { class: "tl", style: "font-size:18px" }, c.w),
-      st.dir === 1 && ja && (P.showReading || st.chosen) && c.r ? el("span", { class: "rd" }, c.r) : null);
-    // 단어가 보기로 나올 때는 보기마다 발음 버튼을 둔다 (버튼 안에 버튼을 넣을 수 없어서 옆에 둔다)
-    return st.dir === 1 ? el("div", { class: "choice-wrap" }, btn, spk(c.w)) : btn;
+    if (st.chosen) { if (c.id === it.id) cls += " right"; else if (c.id === st.chosen) cls += " wrong"; else cls += " done"; }
+    const word = el("span", { class: "tl cw" }, c.w);
+    const reading = ja && c.r && (P.showReading || st.chosen) ? el("span", { class: "rd" }, c.r) : null;
+    const btn = el("button", { class: cls, onclick: () => (st.chosen ? sp.speak(c.w, P.lang) : answerQuiz(key, c.id)) },
+      st.chosen ? null : el("span", { class: "k" }, i + 1),
+      st.dir === 0 && !st.chosen ? el("span", null, c.m) : null,
+      st.dir === 1 || st.chosen ? [word, reading] : null,
+      st.chosen ? el("span", { class: "cm" }, c.m) : null);
+    // 단어가 보기로 나올 때는 풀기 전에도 보기마다 발음을 들어 볼 수 있게 한다
+    return st.dir === 1 && !st.chosen ? el("div", { class: "choice-wrap" }, btn, spk(c.w)) : btn;
   });
   let result = null;
   if (st.chosen) {
     const ok = st.chosen === it.id;
     result = el("div", { class: "result " + (ok ? "ok" : "no") },
-      el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
+      el("div", { class: "head" }, ok ? "정답이에요" : st.chosen === SKIP ? "정답은 이거예요" : "아쉬워요"),
       el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
-      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null);
+      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null,
+      explainBox(kind, it));
   }
-  const pos = el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`);
-  return el("div", { class: "card", id: "quiz-" + key },
-    el("div", { class: "row between" }, el("span", { class: "small muted" }, key === "today" ? "오늘의 퀴즈" : `${LABEL[kind]} 퀴즈`), pos),
+  return el("div", { class: "card quiz", id: "quiz-" + key },
+    el("div", { class: "row between" },
+      el("span", { class: "quiz-title" }, key === "today" ? "오늘의 퀴즈" : `${LABEL[kind]} 퀴즈`),
+      el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`)),
     el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
     promptEl,
     el("div", { class: "choices" }, choiceBtns),
+    st.chosen ? null : el("div", { class: "row", style: "justify-content:center" }, el("button", { class: "link quiet", onclick: () => answerQuiz(key, SKIP) }, "모르겠어요")),
     result,
     st.chosen
       // 다음 버튼은 화면 아래(탭 바 바로 위)에 고정해서 스크롤 없이 누를 수 있게 한다
       ? [el("div", { class: "next-spacer" }), el("div", { class: "next-bar" }, el("button", { class: "btn", id: "next-btn", onclick: () => nextQuiz(key) }, s.i + 1 >= s.queue.length ? "결과 보기" : "다음 →"))]
-      : ja ? el("label", { class: "small muted row", style: "gap:6px" }, el("input", { type: "checkbox", id: "opt-reading", checked: P.showReading || null, onchange: (e) => { P.showReading = e.target.checked; persist(); renderPanel(); } }), "읽는 법 미리 보기") : null);
+      : null);
+}
+const SKIP = "__skip";
+
+// 자세히 설명: Claude가 뉘앙스·쓰는 상황·예문·비슷한 말을 설명한다. 한 번 받은 설명은 기기에 저장한다.
+function explainBox(kind, it) {
+  const saved = S.explain[P.lang][it.id], st = R.explain[P.lang + it.id] || {};
+  if (saved) {
+    const ja = isJa();
+    return el("div", { class: "explain" },
+      saved.nuance ? el("div", null, el("b", null, "뜻과 느낌 "), saved.nuance) : null,
+      saved.usage ? el("div", null, el("b", null, "이럴 때 써요 "), saved.usage) : null,
+      saved.examples?.length ? el("div", { class: "explain-list" }, el("b", null, "예문 더 보기"),
+        saved.examples.map((e) => el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko)))) : null,
+      saved.related?.length ? el("div", { class: "explain-list" }, el("b", null, "비슷하거나 헷갈리는 말"),
+        saved.related.map((e) => el("div", { class: "answer-line" }, say(e.w, "tl lw"), ja && e.r ? el("span", { class: "rd" }, e.r) : null, el("span", { class: "small" }, "— ", e.m)))) : null);
+  }
+  if (!K.anthropicKey) return null;
+  return el("div", { class: "row" },
+    el("button", { class: "btn ghost sm", disabled: st.busy || null, onclick: () => explain(kind, it) }, st.busy ? "설명을 만드는 중…" : "자세히 설명 보기"),
+    st.err ? el("span", { class: "status err" }, st.err) : null);
+}
+async function explain(kind, it) {
+  const lang = P.lang, key = lang + it.id;
+  if (R.explain[key]?.busy) return;
+  R.explain[key] = { busy: true };
+  renderPanel();
+  try {
+    const { system, prompt, schema } = ai.explainRequest(lang, LABEL[kind], it);
+    const out = await ai.askJSON({ apiKey: K.anthropicKey, model: K.model, system, messages: [{ role: "user", content: prompt }], schema, effort: "low", maxTokens: 8000 });
+    const s = (v) => (typeof v === "string" ? v.trim() : "");
+    S.explain[lang][it.id] = {
+      nuance: s(out.nuance),
+      usage: s(out.usage),
+      examples: (Array.isArray(out.examples) ? out.examples : []).map((e) => ({ t: s(e.t), r: s(e.r), ko: s(e.ko) })).filter((e) => e.t).slice(0, 3),
+      related: (Array.isArray(out.related) ? out.related : []).map((e) => ({ w: s(e.w), r: s(e.r), m: s(e.m) })).filter((e) => e.w).slice(0, 3),
+    };
+    persist();
+    R.explain[key] = {};
+  } catch (e) {
+    R.explain[key] = { err: e.message };
+  }
+  if (P.lang === lang) renderPanel();
 }
 function answerQuiz(key, id) {
   const s = R.sess[P.lang][key];
@@ -386,33 +431,14 @@ function scoreView(res, target) {
 }
 
 /* ───────── 오늘 (첫 화면) ───────── */
-function idiomOfDay() {
-  const list = pool("idiom");
-  if (!list.length) return null;
-  const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / DAY);
-  return list[day % list.length];
-}
 function renderToday() {
-  const wrap = el("div", { class: "stack" });
-  const d = new Date(), done = S.stats.done[doneKey()], it = idiomOfDay();
-  const openKey = dkey(d) + P.lang, open = R.open.idiomDay === openKey;
-  wrap.append(
-    el("div", { class: "today-head" },
-      el("h2", null, `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`),
-      el("span", { class: "small muted" }, done ? `오늘의 퀴즈 완료 · ${done.total}문제 중 ${done.right}개 정답` : "오늘의 퀴즈 10문제 · 약 3분")),
-    it ? el("div", { class: "card idiom-day" },
-      el("div", { class: "row between" },
-        el("div", { class: "idiom-word" }, el("span", { class: "tag alt" }, "오늘의 숙어"), say(it.w, "mid tl"), isJa() && it.r ? el("span", { class: "rd" }, it.r) : null),
-        open ? null : el("button", { class: "btn ghost sm", onclick: () => { R.open.idiomDay = openKey; if (P.autoReveal) sp.speak(it.w, P.lang); renderPanel(); } }, "뜻 보기")),
-      open
-        ? [el("div", { class: "idiom-mean" }, it.m),
-           it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), isJa() && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null]
-        : null) : null,
+  const done = S.stats.done[doneKey()];
+  return el("div", { class: "stack" },
+    done ? el("div", { class: "done-line" }, `오늘 퀴즈 완료 · ${done.total}문제 중 ${done.right}개 정답. 더 풀어도 좋아요.`) : null,
     quizCard("today"),
     el("button", { type: "button", class: "card link-card", onclick: () => { P.tab = "chat"; render(); scrollTo(0, 0); } },
       el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI와 대화 연습")),
       el("span", { class: "small muted" }, `상황을 골라 ${langKo()}로 짧게 대화해요`)));
-  return wrap;
 }
 
 /* ───────── 단어 · 숙어 ───────── */

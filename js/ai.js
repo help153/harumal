@@ -141,6 +141,34 @@ How to reply:
 - "hints": 2-3 short things the learner could say next, in ${langName}, at their level.`;
 }
 
+/* ───────── 퀴즈 항목 자세히 설명 ───────── */
+
+export function explainRequest(lang, kindLabel, it) {
+  const isJa = lang === "ja";
+  const L = isJa ? "Japanese" : "English";
+  const item = [`${L} ${kindLabel === "숙어" ? "idiom / set phrase" : "word"}: ${it.w}`, it.r ? `reading: ${it.r}` : "", `Korean meaning given in the app: ${it.m}`, it.ex ? `example from the app: ${it.ex} (${it.exk || ""})` : ""].filter(Boolean).join("\n");
+  const ex = { type: "object", properties: { t: { type: "string" }, r: { type: "string" }, ko: { type: "string" } }, required: ["t", "r", "ko"], additionalProperties: false };
+  const rel = { type: "object", properties: { w: { type: "string" }, r: { type: "string" }, m: { type: "string" } }, required: ["w", "r", "m"], additionalProperties: false };
+  return {
+    system: `You are a friendly ${L} tutor for a Korean native speaker${isJa ? " who is a beginner (JLPT N5-N4)" : ""}. Write all explanations in natural, plain Korean. Be accurate and concise.`,
+    prompt: `Explain this item so the learner really understands it.
+
+${item}
+
+Fields:
+- nuance: what it means and how it feels, in 1-2 short Korean sentences (mention politeness or casualness if it matters).
+- usage: when and how people actually use it, in 1-2 short Korean sentences (common patterns, things to avoid).
+- examples: 2 more short, natural example sentences in ${L}${isJa ? " using only beginner grammar" : ""}. t = the sentence, r = ${isJa ? "the sentence in hiragana" : '""'}, ko = Korean translation.
+- related: up to 3 ${L} words or phrases that are similar or easy to confuse with it. w = the word, r = ${isJa ? "reading in hiragana" : '""'}, m = short Korean meaning and how it differs.`,
+    schema: {
+      type: "object",
+      properties: { nuance: { type: "string" }, usage: { type: "string" }, examples: { type: "array", items: ex }, related: { type: "array", items: rel } },
+      required: ["nuance", "usage", "examples", "related"],
+      additionalProperties: false,
+    },
+  };
+}
+
 /* ───────── 콘텐츠 생성 ───────── */
 
 const str = { type: "string" };

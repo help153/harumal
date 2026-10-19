@@ -9,6 +9,7 @@ export function emptyState() {
     prog: { ja: {}, en: {} },
     custom: { ja: { vocab: [], idiom: [], expr: [] }, en: { vocab: [], idiom: [], expr: [] } },
     stats: { days: {}, done: {} },
+    explain: { ja: {}, en: {} }, // 퀴즈 '자세히 설명'으로 받은 설명 (항목 id별)
     prefs: { pv: 3, lang: "ja", tab: "today", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, slow: false },
   };
 }
@@ -19,6 +20,7 @@ export function normalize(raw) {
   if (!raw || typeof raw !== "object") return s;
   for (const lang of ["ja", "en"]) {
     if (raw.prog?.[lang] && typeof raw.prog[lang] === "object") s.prog[lang] = raw.prog[lang];
+    if (raw.explain?.[lang] && typeof raw.explain[lang] === "object") s.explain[lang] = raw.explain[lang];
     for (const kind of ["vocab", "idiom", "expr"]) {
       const list = raw.custom?.[lang]?.[kind];
       if (Array.isArray(list)) s.custom[lang][kind] = list;
