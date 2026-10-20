@@ -10,7 +10,7 @@ export function emptyState() {
     custom: { ja: { vocab: [], idiom: [], expr: [] }, en: { vocab: [], idiom: [], expr: [] } },
     stats: { days: {}, done: {} },
     explain: { ja: {}, en: {} }, // 퀴즈 '자세히 설명'으로 받은 설명 (항목 id별)
-    prefs: { pv: 3, lang: "ja", tab: "today", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, slow: false },
+    prefs: { pv: 3, lang: "ja", tab: "today", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, kanjiHint: true, slow: false },
   };
 }
 

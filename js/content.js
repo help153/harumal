@@ -1,6 +1,7 @@
 // 기본 학습 콘텐츠: 단어, 한자, 숙어, 일상 표현, 회화 상황
 import { PHRASES } from "./phrases.js";
 import { MORE } from "./examples.js";
+import { KANJI_EXTRA } from "./kanji-meaning.js";
 export const BASE = {
 ja: {
 vocab: [
@@ -252,3 +253,6 @@ for (const lang of ["ja", "en"])
   for (const list of Object.values(BASE[lang]))
     for (const it of list)
       if (!it.xs && MORE[it.id]) it.xs = MORE[it.id].map((row) => (row.length === 3 ? { t: row[0], r: row[1], ko: row[2] } : { t: row[0], r: "", ko: row[1] }));
+
+// 한자 → 훈음 (한자 탭 90자 + 단어·숙어·표현에 나오는 나머지 글자)
+export const KANJI_MEANING = { ...KANJI_EXTRA, ...Object.fromEntries(BASE.ja.kanji.map((k) => [k.w, k.m])) };

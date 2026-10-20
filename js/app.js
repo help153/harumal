@@ -1,4 +1,4 @@
-import { BASE, SCEN, LEVELS, LANG } from "./content.js";
+import { BASE, SCEN, LEVELS, LANG, KANJI_MEANING } from "./content.js";
 import * as store from "./store.js";
 import * as ai from "./ai.js";
 import * as sp from "./speech.js";
@@ -87,8 +87,8 @@ function pool(kind, lang = P.lang) {
 }
 const pkey = (kind, id) => kind[0] + ":" + id;
 const prog = (kind, id, lang = P.lang) => S.prog[lang][pkey(kind, id)];
-function buildQueue(kind, size = 10) {
-  const now = Date.now(), items = pool(kind), Pg = (it) => prog(kind, it.id);
+function buildQueue(kind, size = 10, filter = null) {
+  const now = Date.now(), items = filter ? pool(kind).filter(filter) : pool(kind), Pg = (it) => prog(kind, it.id);
   const due = items.filter((it) => Pg(it) && Pg(it).due <= now).sort((a, b) => Pg(a).due - Pg(b).due);
   const freshAll = items.filter((it) => !Pg(it));
   const fresh = [...shuffle(freshAll.filter((i) => i.mine)), ...shuffle(freshAll.filter((i) => !i.mine))];
@@ -122,7 +122,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.20b";
+const APP_VERSION = "2026.10.20c";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -174,8 +174,12 @@ function needKeyCard(what) {
 // 퀴즈 세트: '오늘'은 일본어 단어 5 + 한자 3 + 숙어 2, 영어 단어 6 + 숙어 4. 각 탭은 10문제
 function quizQueue(key) {
   if (key === "today") {
-    const mix = P.lang === "ja" ? { vocab: 4, kanji: 2, idiom: 1, expr: 3 } : { vocab: 4, idiom: 2, expr: 4 };
-    return shuffle(Object.entries(mix).flatMap(([kind, n]) => buildQueue(kind, n).map((it) => ({ kind, it }))));
+    // 일본어는 쉽게: 단어 5 · 한자 2 · 숙어 1 · 표현 2 (표현은 일상 1 + 비즈니스 1)
+    const biz = (it) => /비즈니스/.test(it.sit || "");
+    const parts = P.lang === "ja"
+      ? [["vocab", 5], ["kanji", 2], ["idiom", 1], ["expr", 1, (it) => !biz(it)], ["expr", 1, biz]]
+      : [["vocab", 4], ["idiom", 2], ["expr", 4]];
+    return shuffle(parts.flatMap(([kind, n, f]) => buildQueue(kind, n, f).map((it) => ({ kind, it }))));
   }
   return buildQueue(key, 10).map((it) => ({ kind: key, it }));
 }
@@ -194,7 +198,7 @@ function quizCard(key) {
   if (!s.st || s.st.id !== it.id) {
     const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
     // 일본어는 쉽게: 대부분 '단어 보고 뜻 고르기'로 내고, 한국어 보고 일본어 고르기는 가끔만
-    const easyDir = P.lang === "ja" ? ({ vocab: 0.9, kanji: 0.8, idiom: 0.95, expr: 0.9 }[kind] ?? 0.9) : ({ idiom: 0.75, expr: 0.7 }[kind] ?? 0.6);
+    const easyDir = P.lang === "ja" ? ({ vocab: 0.95, kanji: 0.9, idiom: 1, expr: 0.95 }[kind] ?? 0.95) : ({ idiom: 0.75, expr: 0.7 }[kind] ?? 0.6);
     s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
   const st = s.st, ja = isJa();
@@ -202,7 +206,9 @@ function quizCard(key) {
     el("span", { class: "tag" + (kind === "idiom" ? " alt" : kind === "expr" && /비즈니스/.test(it.sit || "") ? " biz" : "") },
       `${kind === "expr" && it.sit ? it.sit : LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
     st.dir === 0 ? say(it.w, "big tl" + (kind === "kanji" ? " kanji" : "")) : el("div", { class: "big" }, it.m),
-    st.dir === 0 && ja && (P.showReading || st.chosen) && it.r ? el("div", { class: "rd" }, it.r) : null);
+    st.dir === 0 && ja && (P.showReading || st.chosen) && it.r ? el("div", { class: "rd" }, it.r) : null,
+    // 한자 뜻 힌트: 한자 문제는 답이 보이므로 빼고, 단어·숙어·표현에만
+    st.dir === 0 && ja && kind !== "kanji" && P.kanjiHint && !st.chosen ? kanjiHints(it.w) : null);
   // 답을 고른 뒤에는 보기마다 단어와 뜻을 함께 보여 줘서 오답 보기까지 배울 수 있게 한다. 누르면 발음.
   const choiceBtns = st.choices.map((c, i) => {
     let cls = "choice";
@@ -223,6 +229,7 @@ function quizCard(key) {
     result = el("div", { class: "result " + (ok ? "ok" : "no") },
       el("div", { class: "head" }, ok ? "정답이에요" : st.chosen === SKIP ? "정답은 이거예요" : "아쉬워요"),
       el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
+      ja && kind !== "kanji" ? kanjiHints(it.w) : null,
       it.note ? el("div", { class: "note" }, el("b", null, "팁 "), it.note) : null,
       examplesBox(kind, it),
       explainBox(kind, it));
@@ -251,8 +258,20 @@ function examplesBox(kind, it) {
   if (!list.length) return null;
   const ja = isJa();
   return el("div", { class: "examples" },
-    el("b", null, kind === "kanji" ? "이 한자가 들어간 말" : "자주 쓰는 표현"),
-    list.slice(0, 3).map((e) => el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko))));
+    el("b", null, kind === "kanji" ? "이 한자가 들어간 말" : "예문"),
+    // 기본은 예문 1개, 더 보고 싶으면 펼친다
+    (R.open["ex" + it.id] ? list.slice(0, 3) : list.slice(0, 1)).map((e) =>
+      el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko))),
+    list.length > 1 && !R.open["ex" + it.id]
+      ? el("button", { class: "link", style: "align-self:flex-start", onclick: () => { R.open["ex" + it.id] = true; renderPanel(); } }, `예문 더 보기 (${Math.min(list.length, 3) - 1})`)
+      : null);
+}
+
+// 일본어 단어 속 한자의 훈음 (예: 天気 → 天 하늘 천 · 気 기운 기)
+function kanjiHints(text) {
+  const chars = [...new Set((text || "").match(/[一-鿿]/g) || [])].filter((c) => KANJI_MEANING[c]).slice(0, 6);
+  if (!chars.length) return null;
+  return el("div", { class: "khints", "aria-label": "한자 뜻" }, chars.map((c) => el("span", { class: "khint" }, el("b", null, c), KANJI_MEANING[c])));
 }
 
 // 자세히 설명: Claude가 뉘앙스·쓰는 상황·예문·비슷한 말을 설명한다. 한 번 받은 설명은 기기에 저장한다.
@@ -684,6 +703,7 @@ function renderSettings() {
   wrap.append(el("div", { class: "card tight" },
     el("h2", null, "학습"),
     toggle("p-reading", "일본어 읽는 법(후리가나) 표시", P.showReading, (v) => { P.showReading = v; persist(); }),
+    toggle("p-kanjihint", "일본어 문제에 한자 뜻 힌트 보기 (예: 天 하늘 천)", P.kanjiHint, (v) => { P.kanjiHint = v; persist(); }),
     toggle("p-autosend", "회화에서 말하면 바로 보내기", P.autoSend, (v) => { P.autoSend = v; persist(); }),
     toggle("p-autospeak", "AI 답변 자동으로 읽어 주기", P.autoSpeak, (v) => { P.autoSpeak = v; persist(); }),
     toggle("p-autoreveal", "답을 고르거나 정답을 열면 발음 읽어 주기", P.autoReveal, (v) => { P.autoReveal = v; persist(); }),

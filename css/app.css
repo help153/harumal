@@ -148,6 +148,9 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .tag.biz { background: var(--sunk); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .examples { display: flex; flex-direction: column; gap: 8px; }
 .examples > b { font-size: 13px; color: var(--accent); }
+.khints { display: flex; flex-wrap: wrap; gap: 6px; }
+.khint { display: inline-flex; align-items: baseline; gap: 5px; font-size: 13px; color: var(--muted); background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; }
+.khint b { font-family: var(--f-ja); font-size: 16px; color: var(--ink); font-weight: 600; }
 
 /* 퀴즈 */
 .card.quiz { gap: 14px; }
