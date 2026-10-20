@@ -1,0 +1,21 @@
+/* 하루영어: 하루말 스타일(../css/app.css) 위에 더 크고 쉬운 글씨로 덮어쓴다 */
+body { font-size: 16px; }
+.mark { font-family: var(--f-ui); }
+.big { font-size: clamp(30px, 8.5vw, 42px); font-weight: 600; }
+.big.ko { font-size: clamp(24px, 6.5vw, 32px); }
+.say.big .ico svg { width: 28px; height: 28px; }
+.choice { min-height: 66px; }
+.choice .ck { font-size: 17px; }
+.choice .cw { font-size: 17px; font-weight: 600; }
+.choice .cm { font-size: 14px; }
+.say.md { font-size: 20px; font-weight: 600; }
+.say.ex { font-size: 16.5px; }
+.say.lw { font-size: 17px; }
+.tag-life { background: var(--en-soft); color: var(--en); }
+.tag-kids { background: var(--ja-soft); color: var(--ja); }
+.tag-idiom { background: var(--note-soft); color: var(--note); }
+.tag-retry { background: var(--bad-soft); color: var(--bad); }
+.wrong-list { display: flex; flex-direction: column; gap: 6px; background: var(--sunk); border-radius: 12px; padding: 12px 14px; }
+.wrong-list b { font-size: 13px; color: var(--muted); }
+ul.items li { grid-template-columns: 1fr; }
+.nav button { font-size: 11px; }

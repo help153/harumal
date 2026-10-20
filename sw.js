@@ -2,7 +2,7 @@
 // 앱 파일은 네트워크를 먼저 시도하고(업데이트 반영), 안 되면 저장본을 쓴다.
 // API 호출(Claude, Azure)과 다른 사이트 요청은 건드리지 않는다.
 
-const CACHE = "harumal-v7";
+const CACHE = "harumal-v8";
 const SHELL = [
   "./",
   "./index.html",
@@ -24,7 +24,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("harumal-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

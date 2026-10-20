@@ -143,14 +143,16 @@ How to reply:
 
 /* ───────── 퀴즈 항목 자세히 설명 ───────── */
 
-export function explainRequest(lang, kindLabel, it) {
+// beginner: 초급 학습자용으로 더 쉽게 (일본어는 기본, 하루영어는 영어도 초급)
+export function explainRequest(lang, kindLabel, it, { beginner = lang === "ja" } = {}) {
   const isJa = lang === "ja";
   const L = isJa ? "Japanese" : "English";
-  const item = [`${L} ${kindLabel === "숙어" ? "idiom / set phrase" : "word"}: ${it.w}`, it.r ? `reading: ${it.r}` : "", `Korean meaning given in the app: ${it.m}`, it.ex ? `example from the app: ${it.ex} (${it.exk || ""})` : ""].filter(Boolean).join("\n");
+  const what = kindLabel === "숙어" ? "idiom / set phrase" : kindLabel === "생활영어" || kindLabel === "표현" ? "everyday expression" : "word";
+  const item = [`${L} ${what}: ${it.w}`, it.r ? `reading: ${it.r}` : "", `Korean meaning given in the app: ${it.m}`, it.ex ? `example from the app: ${it.ex} (${it.exk || ""})` : ""].filter(Boolean).join("\n");
   const ex = { type: "object", properties: { t: { type: "string" }, r: { type: "string" }, ko: { type: "string" } }, required: ["t", "r", "ko"], additionalProperties: false };
   const rel = { type: "object", properties: { w: { type: "string" }, r: { type: "string" }, m: { type: "string" } }, required: ["w", "r", "m"], additionalProperties: false };
   return {
-    system: `You are a friendly ${L} tutor for a Korean native speaker${isJa ? " who is a beginner (JLPT N5-N4)" : ""}. Write all explanations in natural, plain Korean. Be accurate and concise.`,
+    system: `You are a friendly ${L} tutor for a Korean native speaker${beginner ? (isJa ? " who is a beginner (JLPT N5-N4)" : " who is a beginner (about elementary-school English level)") : ""}. Write all explanations in natural, plain Korean. Be accurate and concise.`,
     prompt: `Explain this item so the learner really understands it.
 
 ${item}
@@ -158,7 +160,7 @@ ${item}
 Fields:
 - nuance: what it means and how it feels, in 1-2 short Korean sentences (mention politeness or casualness if it matters).
 - usage: when and how people actually use it, in 1-2 short Korean sentences (common patterns, things to avoid).
-- examples: 2 more short, natural example sentences in ${L}${isJa ? " using only beginner grammar" : ""}. t = the sentence, r = ${isJa ? "the sentence in hiragana" : '""'}, ko = Korean translation.
+- examples: 2 more short, natural example sentences in ${L}${beginner ? " using only easy beginner words and grammar" : ""}. t = the sentence, r = ${isJa ? "the sentence in hiragana" : '""'}, ko = Korean translation.
 - related: up to 3 ${L} words or phrases that are similar or easy to confuse with it. w = the word, r = ${isJa ? "reading in hiragana" : '""'}, m = short Korean meaning and how it differs.`,
     schema: {
       type: "object",
