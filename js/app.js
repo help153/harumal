@@ -81,7 +81,8 @@ function dots(b) {
 
 /* ───────── 항목과 간격 반복 ───────── */
 function pool(kind, lang = P.lang) {
-  const mine = (S.custom[lang][kind] || []).map((x) => ({ ...x, mine: true }));
+  // 예전에 저장한 표현(t·ko)도 퀴즈 형식(w·m)으로 맞춰 쓴다
+  const mine = (S.custom[lang][kind] || []).map((x) => ({ ...x, w: x.w || x.t, m: x.m || x.ko, mine: true }));
   return [...mine, ...(BASE[lang][kind] || [])];
 }
 const pkey = (kind, id) => kind[0] + ":" + id;
@@ -121,7 +122,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.20";
+const APP_VERSION = "2026.10.20b";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -147,7 +148,7 @@ function renderChrome() {
   renderStats();
 }
 function renderPanel() {
-  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), kanji: () => renderQuizTab("kanji"), idiom: () => renderQuizTab("idiom"), expr: renderExpr, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
+  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), kanji: () => renderQuizTab("kanji"), idiom: () => renderQuizTab("idiom"), expr: () => renderQuizTab("expr"), chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
   $("#panel").replaceChildren(r());
   if (P.tab === "chat") { const m = $(".msgs"); if (m) m.scrollTop = m.scrollHeight; }
 }
@@ -173,7 +174,7 @@ function needKeyCard(what) {
 // 퀴즈 세트: '오늘'은 일본어 단어 5 + 한자 3 + 숙어 2, 영어 단어 6 + 숙어 4. 각 탭은 10문제
 function quizQueue(key) {
   if (key === "today") {
-    const mix = P.lang === "ja" ? { vocab: 5, kanji: 3, idiom: 2 } : { vocab: 6, idiom: 4 };
+    const mix = P.lang === "ja" ? { vocab: 4, kanji: 2, idiom: 1, expr: 3 } : { vocab: 4, idiom: 2, expr: 4 };
     return shuffle(Object.entries(mix).flatMap(([kind, n]) => buildQueue(kind, n).map((it) => ({ kind, it }))));
   }
   return buildQueue(key, 10).map((it) => ({ kind: key, it }));
@@ -193,12 +194,13 @@ function quizCard(key) {
   if (!s.st || s.st.id !== it.id) {
     const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
     // 일본어는 쉽게: 대부분 '단어 보고 뜻 고르기'로 내고, 한국어 보고 일본어 고르기는 가끔만
-    const easyDir = P.lang === "ja" ? ({ vocab: 0.9, kanji: 0.8, idiom: 0.95 }[kind] ?? 0.9) : (kind === "idiom" ? 0.75 : 0.6);
+    const easyDir = P.lang === "ja" ? ({ vocab: 0.9, kanji: 0.8, idiom: 0.95, expr: 0.9 }[kind] ?? 0.9) : ({ idiom: 0.75, expr: 0.7 }[kind] ?? 0.6);
     s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
   const st = s.st, ja = isJa();
   const promptEl = el("div", { class: "prompt" },
-    el("span", { class: "tag" + (kind === "idiom" ? " alt" : "") }, `${LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
+    el("span", { class: "tag" + (kind === "idiom" ? " alt" : kind === "expr" && /비즈니스/.test(it.sit || "") ? " biz" : "") },
+      `${kind === "expr" && it.sit ? it.sit : LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
     st.dir === 0 ? say(it.w, "big tl" + (kind === "kanji" ? " kanji" : "")) : el("div", { class: "big" }, it.m),
     st.dir === 0 && ja && (P.showReading || st.chosen) && it.r ? el("div", { class: "rd" }, it.r) : null);
   // 답을 고른 뒤에는 보기마다 단어와 뜻을 함께 보여 줘서 오답 보기까지 배울 수 있게 한다. 누르면 발음.
@@ -221,7 +223,8 @@ function quizCard(key) {
     result = el("div", { class: "result " + (ok ? "ok" : "no") },
       el("div", { class: "head" }, ok ? "정답이에요" : st.chosen === SKIP ? "정답은 이거예요" : "아쉬워요"),
       el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
-      it.ex ? el("div", { class: "example-box" }, say(it.ex, "tl ex"), ja && it.exr ? el("div", { class: "rd" }, it.exr) : null, el("div", { class: "small muted" }, it.exk)) : null,
+      it.note ? el("div", { class: "note" }, el("b", null, "팁 "), it.note) : null,
+      examplesBox(kind, it),
       explainBox(kind, it));
   }
   return el("div", { class: "card quiz", id: "quiz-" + key },
@@ -239,6 +242,18 @@ function quizCard(key) {
       : null);
 }
 const SKIP = "__skip";
+
+// 정답 화면의 '자주 쓰는 표현': 기본 예문 + 추가 예문으로 3개까지. 한자는 그 한자가 들어간 말.
+function examplesBox(kind, it) {
+  const list = [];
+  if (it.ex) list.push({ t: it.ex, r: it.exr, ko: it.exk });
+  for (const x of it.xs || []) list.push(x);
+  if (!list.length) return null;
+  const ja = isJa();
+  return el("div", { class: "examples" },
+    el("b", null, kind === "kanji" ? "이 한자가 들어간 말" : "자주 쓰는 표현"),
+    list.slice(0, 3).map((e) => el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko))));
+}
 
 // 자세히 설명: Claude가 뉘앙스·쓰는 상황·예문·비슷한 말을 설명한다. 한 번 받은 설명은 기기에 저장한다.
 function explainBox(kind, it) {
@@ -343,7 +358,7 @@ async function generate(kind, topic) {
     const stamp = Date.now().toString(36);
     const items = arr.map((o, i) => {
       const id = "c" + stamp + i;
-      if (kind === "expr") { const it = { id, t: s(o.t), ko: s(o.ko), sit: s(o.sit) || "AI", note: s(o.note) }; if (lang === "ja") it.r = s(o.r); return it.t && it.ko ? it : null; }
+      if (kind === "expr") { const it = { id, w: s(o.t), m: s(o.ko), sit: s(o.sit) || "AI", note: s(o.note) }; if (lang === "ja") it.r = s(o.r); return it.w && it.m ? it : null; }
       const it = { id, w: s(o.w), m: s(o.m), ex: s(o.ex), exk: s(o.exk) };
       if (lang === "ja") { it.r = s(o.r); it.exr = s(o.exr); }
       return it.w && it.m ? it : null;
@@ -446,51 +461,6 @@ function renderToday() {
 /* ───────── 단어 · 숙어 ───────── */
 function renderQuizTab(kind) {
   return el("div", { class: "stack" }, quizCard(kind), genBox(kind) || "", listBox(kind));
-}
-
-/* ───────── 일상 표현 ───────── */
-function exprSess() {
-  const L = R.sess[P.lang];
-  if (!L.expr) L.expr = { queue: buildQueue("expr"), i: 0, right: 0, st: null };
-  return L.expr;
-}
-function renderExpr() {
-  const s = exprSess();
-  const wrap = el("div", { class: "stack" });
-  if (s.i >= s.queue.length) {
-    wrap.append(el("div", { class: "card" },
-      el("div", { class: "prompt" }, el("span", { class: "tag" }, "세트 완료"), el("div", { class: "mid" }, `${s.queue.length}개 중 ${s.right}개를 알고 있었어요.`)),
-      el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet("expr") }, "다음 세트"))), genBox("expr") || "", listBox("expr"));
-    return wrap;
-  }
-  const it = s.queue[s.i], p = prog("expr", it.id);
-  if (!s.st || s.st.id !== it.id) s.st = { id: it.id, open: false };
-  const front = el("div", { class: "flash" },
-    el("div", { class: "row" }, el("span", { class: "tag" }, it.sit || "표현"), dots(p ? p.b : 0), it.mine ? el("span", { class: "mine" }, "내 항목") : null),
-    el("div", { class: "mid" }, it.ko),
-    el("div", { class: "small muted" }, `${langKo()}로 어떻게 말할까요? 먼저 소리 내어 말해 보고 확인하세요.`));
-  const back = !s.st.open
-    ? el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { s.st.open = true; if (P.autoReveal) sp.speak(it.t, P.lang); renderPanel(); } }, "정답 보기"))
-    : el("div", { class: "flash" },
-        say(it.t, "big tl expr-say"),
-        isJa() && it.r ? el("div", { class: "rd" }, it.r) : null,
-        it.note ? el("div", { class: "note" }, el("b", null, "팁 "), it.note) : null,
-        shadowBox("e" + it.id, it.t),
-        el("div", { class: "row" },
-          el("button", { class: "btn ghost", onclick: () => rateExpr(false) }, "아직 헷갈려요"),
-          el("button", { class: "btn", onclick: () => rateExpr(true) }, "알고 있었어요")));
-  wrap.append(el("div", { class: "card" },
-    el("div", { class: "row between" }, el("span", { class: "small muted" }, "일상 표현"), el("span", { class: "small muted" }, `${s.i + 1} / ${s.queue.length}`)),
-    el("div", { class: "progress" }, el("span", { style: `width:${(s.i / s.queue.length) * 100}%` })),
-    front, back), genBox("expr") || "", listBox("expr"));
-  return wrap;
-}
-function rateExpr(ok) {
-  const s = R.sess[P.lang].expr, it = s.queue[s.i];
-  if (ok) s.right++;
-  grade("expr", it.id, ok);
-  s.i++; s.st = null; R.mic?.abort();
-  renderPanel();
 }
 
 /* ───────── AI 회화 ───────── */
@@ -779,7 +749,7 @@ async function pickImport(e) {
 $("#lang-ja").onclick = () => { R.mic?.abort(); P.lang = "ja"; persist(); render(); };
 $("#lang-en").onclick = () => { R.mic?.abort(); P.lang = "en"; persist(); render(); };
 document.addEventListener("keydown", (e) => {
-  if (!["today", "vocab", "kanji", "idiom"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  if (!["today", "vocab", "kanji", "idiom", "expr"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
   const key = P.tab, s = R.sess[P.lang][key];
   if (!s?.st) return;
   if (!s.st.chosen && /^[1-4]$/.test(e.key)) { const c = s.st.choices[+e.key - 1]; if (c) answerQuiz(key, c.id); }
