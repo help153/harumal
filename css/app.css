@@ -137,6 +137,7 @@ body[data-lang="ja"] .tl { font-family: var(--f-ja); }
 .say .ico { color: var(--accent); flex: 0 0 auto; opacity: .85; }
 .say .ico svg { width: 18px; height: 18px; }
 .say.big .ico svg { width: 26px; height: 26px; }
+.say.kanji { font-size: 64px; line-height: 1.1; font-weight: 500; }
 .say:active { opacity: .55; }
 .say.md { font-size: 19px; }
 .say.ex, .say.lw { font-size: 17px; }

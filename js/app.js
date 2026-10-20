@@ -61,6 +61,7 @@ const ICON = {
   expr: '<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4z"/>',
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   idiom: '<path d="M10 7H6a2 2 0 0 0-2 2v3h5v5H4"/><path d="M20 7h-4a2 2 0 0 0-2 2v3h5v5h-5"/>',
+  kanji: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M12 7v10M8 13h8"/>',
   chat: '<path d="M7 10h.01M12 10h.01M17 10h.01"/><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
@@ -81,7 +82,7 @@ function dots(b) {
 /* ───────── 항목과 간격 반복 ───────── */
 function pool(kind, lang = P.lang) {
   const mine = (S.custom[lang][kind] || []).map((x) => ({ ...x, mine: true }));
-  return [...mine, ...BASE[lang][kind]];
+  return [...mine, ...(BASE[lang][kind] || [])];
 }
 const pkey = (kind, id) => kind[0] + ":" + id;
 const prog = (kind, id, lang = P.lang) => S.prog[lang][pkey(kind, id)];
@@ -120,10 +121,11 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.19d";
+const APP_VERSION = "2026.10.20";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
+  { id: "kanji", label: "한자", icon: ICON.kanji, ja: true }, // 일본어일 때만
   { id: "idiom", label: "숙어", icon: ICON.idiom },
   { id: "expr", label: "표현", icon: ICON.expr },
   { id: "settings", label: "설정", icon: ICON.gear },
@@ -136,23 +138,24 @@ function renderChrome() {
   $("#mark").textContent = LANG[P.lang].mark;
   $("#lang-ja").setAttribute("aria-pressed", String(P.lang === "ja"));
   $("#lang-en").setAttribute("aria-pressed", String(P.lang === "en"));
+  if (P.tab === "kanji" && P.lang !== "ja") P.tab = "today";
   $("#nav").replaceChildren(
-    ...TABS.map((t) =>
+    ...TABS.filter((t) => !t.ja || P.lang === "ja").map((t) =>
       el("button", { type: "button", "aria-current": P.tab === t.id ? "page" : null, onclick: () => { if (P.tab !== t.id) { P.tab = t.id; persist(); render(); scrollTo(0, 0); } } }, svg(t.icon), el("span", null, t.label))
     )
   );
   renderStats();
 }
 function renderPanel() {
-  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), idiom: () => renderQuizTab("idiom"), expr: renderExpr, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
+  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), kanji: () => renderQuizTab("kanji"), idiom: () => renderQuizTab("idiom"), expr: renderExpr, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
   $("#panel").replaceChildren(r());
   if (P.tab === "chat") { const m = $(".msgs"); if (m) m.scrollTop = m.scrollHeight; }
 }
 function render() { renderChrome(); renderPanel(); }
 
 /* ───────── 공통: 누르면 읽기, 퀴즈, AI 생성, 목록, 따라 말하기 ───────── */
-const LABEL = { vocab: "단어", idiom: "숙어", expr: "표현" };
-const OBJ = { vocab: "단어를", idiom: "숙어를", expr: "표현을" };
+const LABEL = { vocab: "단어", kanji: "한자", idiom: "숙어", expr: "표현" };
+const OBJ = { vocab: "단어를", kanji: "한자를", idiom: "숙어를", expr: "표현을" };
 
 // 누르면 발음을 들려주는 글자 (단어·숙어·예문)
 function say(text, cls, ...kids) {
@@ -167,12 +170,11 @@ function needKeyCard(what) {
     el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { P.tab = "settings"; persist(); render(); } }, "설정으로 가기")));
 }
 
-// 퀴즈 세트: '오늘'은 단어 6 + 숙어 4, 단어·숙어 탭은 각각 10문제
+// 퀴즈 세트: '오늘'은 일본어 단어 5 + 한자 3 + 숙어 2, 영어 단어 6 + 숙어 4. 각 탭은 10문제
 function quizQueue(key) {
   if (key === "today") {
-    const v = buildQueue("vocab", 6).map((it) => ({ kind: "vocab", it }));
-    const d = buildQueue("idiom", 4).map((it) => ({ kind: "idiom", it }));
-    return shuffle([...v, ...d]);
+    const mix = P.lang === "ja" ? { vocab: 5, kanji: 3, idiom: 2 } : { vocab: 6, idiom: 4 };
+    return shuffle(Object.entries(mix).flatMap(([kind, n]) => buildQueue(kind, n).map((it) => ({ kind, it }))));
   }
   return buildQueue(key, 10).map((it) => ({ kind: key, it }));
 }
@@ -191,13 +193,13 @@ function quizCard(key) {
   if (!s.st || s.st.id !== it.id) {
     const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
     // 일본어는 쉽게: 대부분 '단어 보고 뜻 고르기'로 내고, 한국어 보고 일본어 고르기는 가끔만
-    const easyDir = P.lang === "ja" ? (kind === "idiom" ? 0.9 : 0.85) : (kind === "idiom" ? 0.75 : 0.6);
+    const easyDir = P.lang === "ja" ? ({ vocab: 0.9, kanji: 0.8, idiom: 0.95 }[kind] ?? 0.9) : (kind === "idiom" ? 0.75 : 0.6);
     s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
   const st = s.st, ja = isJa();
   const promptEl = el("div", { class: "prompt" },
     el("span", { class: "tag" + (kind === "idiom" ? " alt" : "") }, `${LABEL[kind]} · ${st.dir === 0 ? "뜻 고르기" : langKo() + "로 고르기"}`),
-    st.dir === 0 ? say(it.w, "big tl") : el("div", { class: "big" }, it.m),
+    st.dir === 0 ? say(it.w, "big tl" + (kind === "kanji" ? " kanji" : "")) : el("div", { class: "big" }, it.m),
     st.dir === 0 && ja && (P.showReading || st.chosen) && it.r ? el("div", { class: "rd" }, it.r) : null);
   // 답을 고른 뒤에는 보기마다 단어와 뜻을 함께 보여 줘서 오답 보기까지 배울 수 있게 한다. 누르면 발음.
   const choiceBtns = st.choices.map((c, i) => {
@@ -314,7 +316,7 @@ function quizDone(key, s) {
 }
 
 function genBox(kind) {
-  if (!K.anthropicKey) return null;
+  if (!K.anthropicKey || kind === "kanji") return null; // 한자는 기본 목록만 쓴다
   const key = P.lang + kind, st = R.gen[key] || {};
   const go = () => generate(kind, (R.topic[key] || "").trim());
   return el("details", { class: "box", open: R.open["gen" + kind] || st.busy || st.msg ? true : null, ontoggle: (e) => { R.open["gen" + kind] = e.target.open; } },
@@ -777,7 +779,7 @@ async function pickImport(e) {
 $("#lang-ja").onclick = () => { R.mic?.abort(); P.lang = "ja"; persist(); render(); };
 $("#lang-en").onclick = () => { R.mic?.abort(); P.lang = "en"; persist(); render(); };
 document.addEventListener("keydown", (e) => {
-  if (!["today", "vocab", "idiom"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  if (!["today", "vocab", "kanji", "idiom"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
   const key = P.tab, s = R.sess[P.lang][key];
   if (!s?.st) return;
   if (!s.st.chosen && /^[1-4]$/.test(e.key)) { const c = s.st.choices[+e.key - 1]; if (c) answerQuiz(key, c.id); }

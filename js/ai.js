@@ -147,7 +147,7 @@ How to reply:
 export function explainRequest(lang, kindLabel, it, { beginner = lang === "ja" } = {}) {
   const isJa = lang === "ja";
   const L = isJa ? "Japanese" : "English";
-  const what = kindLabel === "숙어" ? "idiom / set phrase" : kindLabel === "생활영어" || kindLabel === "표현" ? "everyday expression" : "word";
+  const what = kindLabel === "숙어" ? "idiom / set phrase" : kindLabel === "한자" ? "kanji character (Korean hanja meaning-sound given as the meaning; explain its readings and the most common everyday words that use it)" : kindLabel === "생활영어" || kindLabel === "표현" ? "everyday expression" : "word";
   const item = [`${L} ${what}: ${it.w}`, it.r ? `reading: ${it.r}` : "", `Korean meaning given in the app: ${it.m}`, it.ex ? `example from the app: ${it.ex} (${it.exk || ""})` : ""].filter(Boolean).join("\n");
   const ex = { type: "object", properties: { t: { type: "string" }, r: { type: "string" }, ko: { type: "string" } }, required: ["t", "r", "ko"], additionalProperties: false };
   const rel = { type: "object", properties: { w: { type: "string" }, r: { type: "string" }, m: { type: "string" } }, required: ["w", "r", "m"], additionalProperties: false };
