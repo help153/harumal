@@ -1,7 +1,7 @@
 // 하루영어 오프라인 실행용. 앱 파일은 네트워크를 먼저 확인하고(업데이트 반영), 안 되면 저장본을 쓴다.
 // 하루말과 같은 주소에 있지만 이 서비스 워커는 /easy/ 아래만 담당한다.
 
-const CACHE = "haruen-v1";
+const CACHE = "haruen-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const SHELL = [
   "./js/content.js",
   "../css/app.css",
   "../js/ai.js",
+  "../js/family-en.js",
   "../js/speech.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",

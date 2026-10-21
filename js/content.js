@@ -1,5 +1,6 @@
 // 기본 학습 콘텐츠: 단어, 한자, 숙어, 일상 표현, 회화 상황
 import { PHRASES } from "./phrases.js";
+import { FAMILY } from "./family-en.js";
 import { MORE } from "./examples.js";
 import { KANJI_EXTRA } from "./kanji-meaning.js";
 export const BASE = {
@@ -168,60 +169,9 @@ idiom: [
 ].map(([w,r,m,ex,exr,exk],i)=>({id:"jj"+i,w,r,m,ex,exr,exk})),
 },
 en: {
-vocab: [
-["figure out","알아내다, 이해하다","I can't figure out how this works.","이게 어떻게 되는 건지 모르겠어."],
-["run late","늦어지다","Sorry, I'm running late.","미안, 좀 늦어지고 있어."],
-["catch up","근황을 나누다; 따라잡다","Let's catch up over coffee.","커피 마시면서 얘기 좀 하자."],
-["reschedule","일정을 다시 잡다","Can we reschedule to Friday?","금요일로 일정 바꿀 수 있을까?"],
-["available","(시간이) 되는, 이용 가능한","Are you available this afternoon?","오늘 오후에 시간 돼?"],
-["appreciate","고마워하다","I really appreciate your help.","도와줘서 정말 고마워."],
-["recommend","추천하다","What do you recommend?","뭐 추천해요?"],
-["borrow","빌리다","Can I borrow your charger?","충전기 좀 빌려도 돼?"],
-["refund","환불","I'd like a refund, please.","환불해 주세요."],
-["receipt","영수증","Do you need a receipt?","영수증 필요하세요?"],
-["commute","통근(하다)","My commute takes an hour.","출퇴근하는 데 한 시간 걸려."],
-["errand","볼일, 심부름","I have a few errands to run.","볼일이 몇 개 있어."],
-["exhausted","녹초가 된","I'm exhausted after work.","일 끝나고 녹초야."],
-["awkward","어색한","That was a little awkward.","좀 어색했어."],
-["honestly","솔직히","Honestly, I'm not sure.","솔직히 잘 모르겠어."],
-["actually","사실은","Actually, I already ate.","사실 나 이미 먹었어."],
-["definitely","확실히, 꼭","I'll definitely be there.","꼭 갈게."],
-["probably","아마","It'll probably rain later.","이따 아마 비 올 거야."],
-["in a hurry","서두르는, 급한","Sorry, I'm in a bit of a hurry.","미안, 좀 급해서."],
-["grab a bite","간단히 먹다","Want to grab a bite?","간단히 뭐 먹을래?"],
-["take a rain check","다음으로 미루다","Can I take a rain check?","다음으로 미뤄도 될까?"],
-["get used to","~에 익숙해지다","I'm getting used to it.","점점 익숙해지고 있어."],
-["look forward to","~을 기대하다","I'm looking forward to it.","기대하고 있어."],
-["hang out","어울려 놀다","Do you want to hang out this weekend?","이번 주말에 놀래?"],
-].map(([w,m,ex,exk],i)=>({id:"ev"+i,w,m,ex,exk})),
-expr: PHRASES.en,
-idiom: [
-["break the ice","어색한 분위기를 깨다","He told a joke to break the ice.","그는 분위기를 풀려고 농담을 했어."],
-["a piece of cake","아주 쉬운 일","The test was a piece of cake.","시험은 식은 죽 먹기였어."],
-["hit the sack","자러 가다","I'm going to hit the sack.","나 이제 자러 갈게."],
-["under the weather","몸이 좀 안 좋은","I'm feeling a bit under the weather.","몸이 좀 안 좋아."],
-["call it a day","오늘은 그만하다","Let's call it a day.","오늘은 여기까지 하자."],
-["cost an arm and a leg","엄청 비싸다","That bag cost an arm and a leg.","그 가방 엄청 비쌌어."],
-["on the same page","생각이 같은","Let's make sure we're on the same page.","우리 생각이 같은지 확인하자."],
-["hang in there","조금만 버텨","Hang in there, it'll get better.","조금만 버텨, 나아질 거야."],
-["no big deal","별일 아니다","Don't worry, it's no big deal.","걱정 마, 별일 아니야."],
-["get the hang of","요령을 터득하다","You'll get the hang of it soon.","금방 요령이 생길 거야."],
-["beat around the bush","돌려 말하다","Stop beating around the bush.","돌려 말하지 마."],
-["keep an eye on","~을 봐 주다, 지켜보다","Can you keep an eye on my bag?","내 가방 좀 봐 줄래?"],
-["let someone off the hook","봐주다","I'll let you off the hook this time.","이번엔 봐줄게."],
-["out of the blue","갑자기, 난데없이","She called me out of the blue.","그녀가 갑자기 전화했어."],
-["sleep on it","하룻밤 생각해 보다","Let me sleep on it.","하룻밤 생각해 볼게."],
-["my treat","내가 살게","Dinner's my treat tonight.","오늘 저녁은 내가 살게."],
-["ring a bell","들어 본 것 같다","That name rings a bell.","그 이름 들어 본 것 같아."],
-["take it easy","무리하지 마, 푹 쉬어","Take it easy this weekend.","이번 주말엔 푹 쉬어."],
-["in a nutshell","간단히 말하면","In a nutshell, we need more time.","간단히 말해서, 시간이 더 필요해."],
-["once in a blue moon","아주 가끔","I eat fast food once in a blue moon.","패스트푸드는 아주 가끔 먹어."],
-["the last straw","더는 못 참게 만든 마지막 일","That was the last straw.","그게 결정타였어."],
-["up in the air","아직 정해지지 않은","Our plans are still up in the air.","우리 계획은 아직 미정이야."],
-["cut corners","대충 하다","Don't cut corners on safety.","안전 문제는 대충 하지 마."],
-["go the extra mile","기대 이상으로 애쓰다","She always goes the extra mile.","그녀는 늘 한 발 더 애써."],
-["spill the beans","비밀을 털어놓다","Who spilled the beans?","누가 비밀을 말했어?"],
-].map(([w,m,ex,exk],i)=>({id:"ei"+i,w,m,ex,exk})),
+vocab: FAMILY.words,
+expr: FAMILY.sentences,
+idiom: FAMILY.phrasal,
 }};
 
 export const SCEN = {

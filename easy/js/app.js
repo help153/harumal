@@ -4,7 +4,7 @@ import { BASE, KINDS } from "./content.js";
 import * as ai from "../../js/ai.js";
 import * as sp from "../../js/speech.js";
 
-const APP_VERSION = "2026.10.20";
+const APP_VERSION = "2026.10.21";
 const SKEY = "haruen:v1";
 const KKEY = "haruen:keys";
 const LANG = "en";

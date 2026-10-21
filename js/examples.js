@@ -1,5 +1,5 @@
 // 정답 화면의 '자주 쓰는 표현'에 더해 보여 줄 예문 (항목 id별 2개씩)
-// 일본어: [문장, 읽는 법, 한국어], 영어: [문장, 한국어]
+// 일본어: [문장, 읽는 법, 한국어] (영어 예문은 family-en.js에 함께 있음)
 // 한자(jk)는 그 한자가 들어간 자주 쓰는 말: [단어, 읽는 법, 뜻]
 
 export const MORE = {
@@ -164,56 +164,4 @@ export const MORE = {
   jk88: [["会議", "かいぎ", "회의"], ["会う", "あう", "만나다"]],
   jk89: [["会社員", "かいしゃいん", "회사원"], ["本社", "ほんしゃ", "본사"]],
 
-  // ── 영어 단어 ──
-  ev0: [["Let's figure it out together.", "같이 해결해 봐요."], ["I figured out the problem.", "문제를 알아냈어요."]],
-  ev1: [["The meeting is running late.", "회의가 늦어지고 있어요."], ["I'm running ten minutes late.", "10분 정도 늦을 것 같아요."]],
-  ev2: [["I need to catch up on my emails.", "밀린 메일을 처리해야 해요."], ["Let's catch up next week.", "다음 주에 만나서 얘기해요."]],
-  ev3: [["I need to reschedule our meeting.", "미팅 일정을 바꿔야 해요."], ["Can we reschedule for next week?", "다음 주로 일정 바꿀 수 있을까요?"]],
-  ev4: [["When are you available?", "언제 시간 되세요?"], ["Is this size available?", "이 사이즈 있어요?"]],
-  ev5: [["I appreciate your quick reply.", "빠른 답장 감사해요."], ["We really appreciate your business.", "거래해 주셔서 정말 감사합니다."]],
-  ev6: [["Can you recommend a good restaurant?", "좋은 식당 추천해 줄래요?"], ["I highly recommend it.", "강력 추천해요."]],
-  ev7: [["Can I borrow a pen?", "펜 좀 빌려도 돼요?"], ["I borrowed his car.", "그의 차를 빌렸어요."]],
-  ev8: [["Can I get a refund?", "환불받을 수 있나요?"], ["We'll send you a full refund.", "전액 환불해 드릴게요."]],
-  ev9: [["Can I have a receipt, please?", "영수증 주시겠어요?"], ["Please keep the receipt.", "영수증은 보관해 주세요."]],
-  ev10: [["How long is your commute?", "출퇴근 시간이 얼마나 걸려요?"], ["I commute by subway.", "지하철로 출퇴근해요."]],
-  ev11: [["I need to run an errand.", "볼일 좀 보고 올게요."], ["She's out on an errand.", "그녀는 볼일 보러 나갔어요."]],
-  ev12: [["You look exhausted.", "녹초가 된 것 같아요."], ["I'm exhausted from the trip.", "여행 때문에 완전히 지쳤어요."]],
-  ev13: [["There was an awkward silence.", "어색한 침묵이 흘렀어요."], ["Sorry if that was awkward.", "어색했다면 미안해요."]],
-  ev14: [["Honestly, it's too expensive.", "솔직히 너무 비싸요."], ["I honestly don't know.", "솔직히 모르겠어요."]],
-  ev15: [["Actually, I have a question.", "사실 질문이 하나 있어요."], ["It's actually pretty easy.", "사실 꽤 쉬워요."]],
-  ev16: [["We should definitely meet again.", "꼭 다시 만나요."], ["Definitely not.", "절대 아니에요."]],
-  ev17: [["I'll probably be late.", "아마 늦을 거예요."], ["That's probably the best option.", "그게 아마 최선일 거예요."]],
-  ev18: [["I'm not in a hurry.", "저 급하지 않아요."], ["He left in a hurry.", "그는 급하게 떠났어요."]],
-  ev19: [["Let's grab a bite after work.", "퇴근하고 간단히 먹어요."], ["I'll grab a bite on the way.", "가는 길에 간단히 먹을게요."]],
-  ev20: [["Can we take a rain check on lunch?", "점심은 다음으로 미뤄도 될까요?"], ["Sure, I'll take a rain check.", "좋아요, 다음에 해요."]],
-  ev21: [["You'll get used to it.", "곧 익숙해질 거예요."], ["I'm used to working late.", "늦게까지 일하는 데 익숙해요."]],
-  ev22: [["I look forward to working with you.", "함께 일하게 되어 기대됩니다."], ["I'm looking forward to your reply.", "답장 기다리겠습니다."]],
-  ev23: [["We hung out all day.", "하루 종일 같이 놀았어요."], ["Where do you usually hang out?", "보통 어디서 놀아요?"]],
-
-  // ── 영어 숙어 ──
-  ei0: [["A little small talk helps break the ice.", "가벼운 대화가 어색함을 풀어 줘요."], ["Let's start with a game to break the ice.", "분위기를 풀려고 게임부터 해요."]],
-  ei1: [["Don't worry, it's a piece of cake.", "걱정 마요, 식은 죽 먹기예요."], ["The setup was a piece of cake.", "설치는 아주 쉬웠어요."]],
-  ei2: [["I'm tired. Time to hit the sack.", "피곤하다. 이제 자야지."], ["I hit the sack early last night.", "어젯밤에 일찍 잤어요."]],
-  ei3: [["He's under the weather today.", "그는 오늘 몸이 안 좋아요."], ["I've been under the weather all week.", "일주일 내내 몸이 안 좋았어요."]],
-  ei4: [["It's late. Let's call it a day.", "늦었어요. 오늘은 여기까지 해요."], ["We called it a day at six.", "6시에 일을 마쳤어요."]],
-  ei5: [["The repair cost an arm and a leg.", "수리비가 엄청 나왔어요."], ["It won't cost an arm and a leg.", "그렇게 비싸지 않을 거예요."]],
-  ei6: [["Are we on the same page?", "우리 같은 생각인 거죠?"], ["Let's get everyone on the same page.", "모두 같은 이해를 갖도록 해요."]],
-  ei7: [["Hang in there. You're almost done.", "조금만 버텨요. 거의 다 했어요."], ["Business is slow, but we're hanging in there.", "장사가 잘 안 되지만 버티고 있어요."]],
-  ei8: [["Sorry I'm late. — No big deal.", "늦어서 미안해요. — 별일 아니에요."], ["It's no big deal if we miss it.", "놓쳐도 큰일은 아니에요."]],
-  ei9: [["I'm getting the hang of it.", "점점 요령이 생기고 있어요."], ["It takes time to get the hang of the system.", "시스템에 익숙해지려면 시간이 걸려요."]],
-  ei10: [["Just tell me. Don't beat around the bush.", "그냥 말해요. 돌려 말하지 말고요."], ["He always beats around the bush.", "그는 늘 돌려서 말해요."]],
-  ei11: [["Keep an eye on the kids, please.", "아이들 좀 봐 주세요."], ["Let's keep an eye on the sales numbers.", "매출 수치를 계속 지켜봐요."]],
-  ei12: [["Thanks for letting me off the hook.", "봐줘서 고마워요."], ["Don't let him off the hook so easily.", "그 사람을 그렇게 쉽게 봐주지 마요."]],
-  ei13: [["He quit out of the blue.", "그가 갑자기 그만뒀어요."], ["A big order came in out of the blue.", "갑자기 큰 주문이 들어왔어요."]],
-  ei14: [["Can I sleep on it and call you tomorrow?", "하룻밤 생각해 보고 내일 전화해도 될까요?"], ["Don't decide now. Sleep on it.", "지금 정하지 말고 하룻밤 생각해 봐요."]],
-  ei15: [["Coffee's my treat.", "커피는 제가 살게요."], ["Put your wallet away. It's my treat.", "지갑 넣어요. 제가 살게요."]],
-  ei16: [["Does the name Kim ring a bell?", "김이라는 이름 들어 본 것 같아요?"], ["Sorry, it doesn't ring a bell.", "미안해요, 기억이 안 나요."]],
-  ei17: [["Take it easy. You've worked hard.", "좀 쉬어요. 고생했어요."], ["Take it easy on the new staff.", "신입 직원한테 너무 엄하게 하지 마요."]],
-  ei18: [["In a nutshell, the deal is done.", "간단히 말하면, 거래가 성사됐어요."], ["Can you explain it in a nutshell?", "간단히 설명해 줄 수 있어요?"]],
-  ei19: [["We meet once in a blue moon.", "우리는 아주 가끔 만나요."], ["He calls once in a blue moon.", "그는 아주 가끔 전화해요."]],
-  ei20: [["Being late again was the last straw.", "또 늦은 게 결정타였어요."], ["This is the last straw!", "이제 더는 못 참아!"]],
-  ei21: [["The launch date is still up in the air.", "출시일은 아직 미정이에요."], ["Everything is up in the air right now.", "지금은 모든 게 불확실해요."]],
-  ei22: [["We can't cut corners on quality.", "품질은 대충 할 수 없어요."], ["They cut corners to save money.", "돈을 아끼려고 대충 했어요."]],
-  ei23: [["Our team went the extra mile for the client.", "우리 팀은 고객을 위해 한 발 더 노력했어요."], ["Thanks for going the extra mile.", "신경 많이 써 줘서 고마워요."]],
-  ei24: [["Don't spill the beans about the party.", "파티 얘기는 비밀로 해 줘."], ["She spilled the beans about the new project.", "그녀가 새 프로젝트 얘기를 말해 버렸어요."]],
 };
