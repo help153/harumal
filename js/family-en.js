@@ -83,6 +83,68 @@ const sentences = [
   ["Listen to me.", "내 말 들어.", [["Look at me when I'm talking.", "말할 때 엄마(아빠) 봐."], ["Are you listening?", "듣고 있어?"], ["I'll say it one more time.", "한 번만 더 말할게."]], "대화"],
   ["What do you want to be when you grow up?", "커서 뭐 되고 싶어?", [["I want to be a doctor.", "의사가 되고 싶어요."], ["That's a great dream.", "멋진 꿈이네."], ["Why do you want to be a teacher?", "왜 선생님이 되고 싶어?"]], "대화"],
   ["Be quiet, please.", "조용히 해 줘.", [["Use your inside voice.", "실내에서는 작은 목소리로 말해."], ["The baby is sleeping.", "아기 자고 있어."], ["Shh!", "쉿!"]], "대화"],
+  // 병원 · 아플 때
+  ["Where does it hurt?", "어디가 아파?", [["Does your tummy hurt?", "배 아파?"], ["Show me where it hurts.", "아픈 데 보여 줘."], ["Let me check your forehead.", "이마 좀 짚어 볼게."]], "병원"],
+  ["You have a fever.", "열이 나네.", [["Let me take your temperature.", "체온 재 보자."], ["Your forehead is hot.", "이마가 뜨겁네."], ["You need to rest today.", "오늘은 쉬어야 해."]], "병원"],
+  ["Let's go see the doctor.", "병원 가자.", [["The doctor will help you feel better.", "의사 선생님이 낫게 도와주실 거야."], ["Tell the doctor how you feel.", "어디가 아픈지 선생님께 말씀드려."], ["It won't hurt much.", "많이 안 아플 거야."]], "병원"],
+  ["Take your medicine.", "약 먹어.", [["It tastes like strawberry.", "딸기 맛이야."], ["Swallow it all at once.", "한 번에 꿀꺽 삼켜."], ["You can have water after.", "먹고 나서 물 마셔."]], "병원"],
+  ["You'll feel better soon.", "금방 나을 거야.", [["Get some rest.", "푹 쉬어."], ["Stay in bed today.", "오늘은 누워 있어."], ["Feel better, sweetie.", "얼른 나아, 우리 아가."]], "병원"],
+  ["Let me put a bandage on it.", "밴드 붙여 줄게.", [["Did you fall down?", "넘어졌어?"], ["Let's clean the cut first.", "상처 먼저 닦자."], ["It'll stop hurting soon.", "곧 안 아플 거야."]], "병원"],
+  ["Cover your mouth when you cough.", "기침할 땐 입 가려.", [["Bless you!", "(재채기 후) 몸조심해!"], ["Blow your nose.", "코 풀어."], ["Use a tissue.", "휴지 써."]], "병원", "재채기하면 \"Bless you!\"라고 해 주고, 아이는 \"Thank you.\"로 답해요."],
+  // 마트 · 쇼핑
+  ["Stay with me in the store.", "가게에서는 엄마(아빠) 옆에 있어.", [["Don't run off.", "혼자 뛰어가지 마."], ["Hold on to the cart.", "카트 잡고 있어."], ["If you get lost, find a staff member.", "길 잃으면 직원을 찾아."]], "마트"],
+  ["We're not buying that today.", "오늘은 그거 안 살 거야.", [["Put it back, please.", "다시 갖다 놔."], ["Maybe next time.", "다음에 사자."], ["We only need milk and eggs.", "우유랑 달걀만 사면 돼."]], "마트", "떼쓸 때 단호하지만 부드럽게 쓰는 말이에요."],
+  ["Can you push the cart?", "카트 밀어 줄래?", [["Be careful not to bump into people.", "사람들이랑 부딪히지 않게 조심해."], ["Let's go to the fruit section.", "과일 코너로 가자."], ["Can you find the bananas?", "바나나 찾아 줄래?"]], "마트"],
+  ["You can pick one snack.", "간식 하나 골라도 돼.", [["Just one, okay?", "딱 하나만이야, 알았지?"], ["Which one do you want?", "어떤 거 갖고 싶어?"], ["That's too much sugar.", "그건 설탕이 너무 많아."]], "마트"],
+  ["Let's pay at the counter.", "계산대에서 계산하자.", [["Can you give this to the cashier?", "이거 계산원한테 줄래?"], ["Do you want to pay with the card?", "카드로 계산해 볼래?"], ["Say thank you to the cashier.", "계산원께 고맙다고 해."]], "마트"],
+  // 차 · 여행
+  ["Buckle your seat belt.", "안전벨트 매.", [["Is your seat belt on?", "안전벨트 맸어?"], ["Click! Good job.", "딸깍! 잘했어."], ["Don't take it off while we're driving.", "운전 중엔 풀지 마."]], "차·여행"],
+  ["Are we there yet?", "아직 멀었어요?", [["Almost there!", "거의 다 왔어!"], ["About ten more minutes.", "10분 정도만 더."], ["Look out the window.", "창밖 봐."]], "차·여행", "아이가 차에서 가장 많이 하는 말이에요."],
+  ["Do you feel carsick?", "차멀미 나?", [["Look far away.", "멀리 봐."], ["Let's open the window a little.", "창문 조금 열자."], ["We'll stop for a break soon.", "곧 쉬었다 가자."]], "차·여행"],
+  ["Let's pack for our trip.", "여행 짐 싸자.", [["What do you want to bring?", "뭐 가져가고 싶어?"], ["Don't forget your swimsuit.", "수영복 잊지 마."], ["Only one toy, okay?", "장난감은 하나만, 알았지?"]], "차·여행"],
+  ["Stay close at the airport.", "공항에서는 가까이 붙어 있어.", [["Let's find our gate.", "탑승구 찾자."], ["We're getting on the plane soon.", "곧 비행기 타."], ["Show your passport.", "여권 보여 드려."]], "차·여행"],
+  ["Let's take a picture!", "사진 찍자!", [["Say cheese!", "치즈!"], ["Look at the camera.", "카메라 봐."], ["One more, please.", "한 장만 더."]], "차·여행"],
+  // 친구 · 놀이 약속
+  ["Do you want to invite a friend over?", "친구 집에 초대할래?", [["Your friend is coming over today.", "오늘 친구가 놀러 와."], ["Let's call her mom.", "친구 엄마한테 전화해 보자."], ["Show your friend your room.", "친구한테 네 방 보여 줘."]], "친구"],
+  ["Play nicely together.", "사이좋게 놀아.", [["Let your friend choose first.", "친구가 먼저 고르게 해."], ["Don't be bossy.", "친구한테 이래라저래라 하지 마."], ["Use kind words.", "예쁜 말 써."]], "친구"],
+  ["It's time to go home.", "이제 집에 갈 시간이야.", [["Say bye to your friend.", "친구한테 인사해."], ["Five more minutes, then we're leaving.", "5분 뒤에 갈 거야."], ["Thank you for having us.", "초대해 주셔서 감사합니다."]], "친구", "\"Thank you for having us.\"는 남의 집에서 나올 때 부모가 하는 인사예요."],
+  ["Did you say thank you?", "고맙다고 했어?", [["Say thank you to Mina's mom.", "미나 어머니께 감사하다고 해."], ["Say please.", "'주세요'라고 해야지."], ["Good manners!", "예의 바르네!"]], "친구"],
+  // 생일 · 파티
+  ["Let's make a birthday card.", "생일 카드 만들자.", [["What do you want to write?", "뭐라고 쓸래?"], ["Write your name here.", "여기 네 이름 써."], ["Your friend will love it.", "친구가 정말 좋아할 거야."]], "생일"],
+  ["Let's wrap the present.", "선물 포장하자.", [["Hold the tape for me.", "테이프 좀 잡아 줘."], ["Choose the wrapping paper.", "포장지 골라."], ["It's a surprise!", "깜짝 선물이야!"]], "생일"],
+  ["Make a wish and blow out the candles!", "소원 빌고 촛불 꺼!", [["Let's sing Happy Birthday.", "생일 축하 노래 부르자."], ["What did you wish for?", "무슨 소원 빌었어?"], ["Let's cut the cake.", "케이크 자르자."]], "생일"],
+  // 식당 · 공공장소
+  ["Sit nicely at the table.", "식탁에 바르게 앉아.", [["We're at a restaurant.", "여기는 식당이야."], ["Don't run around.", "돌아다니지 마."], ["Wait until the food comes.", "음식 나올 때까지 기다려."]], "식당·공공장소"],
+  ["What would you like to order?", "뭐 주문할래?", [["Do you want the kids' menu?", "어린이 메뉴 먹을래?"], ["Can you order by yourself?", "혼자 주문해 볼래?"], ["Say please when you order.", "주문할 때 please 붙여."]], "식당·공공장소"],
+  ["Don't touch anything here.", "여기 있는 건 만지지 마.", [["Just look with your eyes.", "눈으로만 봐."], ["Keep your hands to yourself.", "손은 가만히 둬."], ["This is not a toy.", "이건 장난감이 아니야."]], "식당·공공장소"],
+  ["Let's be quiet on the bus.", "버스에서는 조용히 하자.", [["Hold on tight.", "꽉 잡아."], ["Give your seat to the grandma.", "할머니께 자리 양보해."], ["We get off at the next stop.", "다음 정류장에서 내려."]], "식당·공공장소"],
+  // 가족
+  ["Let's call Grandma.", "할머니께 전화하자.", [["Say hello to Grandma.", "할머니께 인사해."], ["Let's video chat with Grandpa.", "할아버지랑 영상통화하자."], ["Tell her about your day.", "오늘 있었던 일 말씀드려."]], "가족"],
+  ["Grandma is coming over.", "할머니 오신대.", [["Let's clean up before she comes.", "오시기 전에 치우자."], ["Give Grandma a big hug.", "할머니 꼭 안아 드려."], ["Grandma brought you a present.", "할머니가 선물 사 오셨어."]], "가족"],
+  ["Dad will be home late tonight.", "아빠 오늘 늦게 오셔.", [["Dad is working late.", "아빠 늦게까지 일하셔."], ["Let's save some dinner for Dad.", "아빠 드실 저녁 남겨 두자."], ["Say good night to Dad on the phone.", "아빠한테 전화로 잘 자라고 해."]], "가족"],
+  ["Let's have a family movie night.", "가족끼리 영화 보자.", [["Let's make popcorn.", "팝콘 만들자."], ["You pick the movie.", "영화는 네가 골라."], ["Get your blanket.", "담요 가져와."]], "가족"],
+  // 학원 · 픽업 · 일정
+  ["I'll pick you up after school.", "학교 끝나면 데리러 갈게.", [["Wait for me at the gate.", "정문에서 기다려."], ["I'm a little late. Wait inside.", "조금 늦어. 안에서 기다려."], ["Grandma will pick you up today.", "오늘은 할머니가 데리러 가실 거야."]], "학원·일정"],
+  ["You have piano class today.", "오늘 피아노 학원 가는 날이야.", [["Don't forget your piano book.", "피아노 책 잊지 마."], ["Did you practice?", "연습했어?"], ["Your class starts at four.", "수업은 4시에 시작해."]], "학원·일정"],
+  ["What do you want to do this weekend?", "이번 주말에 뭐 하고 싶어?", [["Let's go camping this weekend.", "이번 주말에 캠핑 가자."], ["We're going to the zoo on Saturday.", "토요일에 동물원 가."], ["Let's stay home and relax.", "집에서 쉬자."]], "학원·일정"],
+  ["Let's make a schedule.", "계획표 만들자.", [["Homework first, then play time.", "숙제 먼저, 그다음 노는 시간."], ["You can watch TV after eight.", "8시 이후에 티비 봐도 돼."], ["Let's stick to the plan.", "계획대로 하자."]], "학원·일정"],
+  // 날씨 · 옷차림
+  ["It's cold. Wear a warm coat.", "추워. 따뜻한 외투 입어.", [["Put on your gloves.", "장갑 껴."], ["Wear a scarf.", "목도리 해."], ["Zip up your coat.", "외투 지퍼 올려."]], "날씨·옷"],
+  ["It's hot today. Wear shorts.", "오늘 더워. 반바지 입어.", [["Put on sunscreen.", "선크림 발라."], ["Wear your sun hat.", "햇볕 모자 써."], ["Drink lots of water.", "물 많이 마셔."]], "날씨·옷"],
+  ["Your clothes are dirty. Change, please.", "옷 더러워졌네. 갈아입어.", [["Put on clean clothes.", "깨끗한 옷 입어."], ["Put the dirty ones in the laundry.", "더러운 옷은 빨래통에 넣어."], ["You spilled juice on your shirt.", "셔츠에 주스 쏟았네."]], "날씨·옷"],
+  ["Is it snowing? Let's build a snowman!", "눈 와? 눈사람 만들자!", [["Wear your boots.", "장화 신어."], ["Let's have a snowball fight.", "눈싸움하자."], ["Your hands are cold. Let's go inside.", "손 차갑다. 들어가자."]], "날씨·옷"],
+  // 요리 · 집안 · 반려동물
+  ["Let's bake cookies together.", "같이 쿠키 굽자.", [["Can you crack the eggs?", "달걀 깨 줄래?"], ["Mix it slowly.", "천천히 섞어."], ["Wait until they cool down.", "식을 때까지 기다려."]], "요리·집안"],
+  ["Can you water the plants?", "화분에 물 줄래?", [["Just a little water.", "물 조금만."], ["Look, a new leaf!", "봐, 새 잎이 났어!"], ["Plants need sunlight.", "식물은 햇빛이 필요해."]], "요리·집안"],
+  ["Did you feed the dog?", "강아지 밥 줬어?", [["It's your turn to walk the dog.", "네가 강아지 산책시킬 차례야."], ["Fill up the water bowl.", "물그릇 채워."], ["Be gentle with the cat.", "고양이한테 살살 해."]], "요리·집안"],
+  // 훈육 · 약속
+  ["That's not okay.", "그건 안 돼.", [["We don't hit.", "때리는 건 안 돼."], ["Please stop.", "그만해."], ["I'll count to three.", "셋 셀 거야."]], "훈육", "\"We don't ~\"는 '우리 집에서는 ~ 안 해'라는 규칙을 말할 때 써요."],
+  ["Take a break and think about it.", "잠깐 쉬면서 생각해 봐.", [["Sit here for five minutes.", "5분 동안 여기 앉아 있어."], ["Are you ready to talk?", "얘기할 준비 됐어?"], ["What can you do next time?", "다음엔 어떻게 할 수 있을까?"]], "훈육"],
+  ["Do you promise?", "약속해?", [["Pinky promise!", "새끼손가락 걸고 약속!"], ["You promised.", "약속했잖아."], ["Let's keep our promise.", "약속 지키자."]], "훈육"],
+  ["Tell me the truth.", "솔직하게 말해 줘.", [["It's okay. I won't get mad.", "괜찮아. 화 안 낼게."], ["Thank you for telling me.", "말해 줘서 고마워."], ["Honesty is important.", "정직은 중요해."]], "훈육"],
+  // 용돈 · 경제
+  ["Let's save money in your piggy bank.", "저금통에 돈 모으자.", [["How much do you have?", "얼마 모았어?"], ["Save it for something special.", "특별한 데 쓰려고 모아 둬."], ["Let's count the coins.", "동전 세 보자."]], "용돈"],
+  ["Do you need it or want it?", "그거 필요한 거야, 갖고 싶은 거야?", [["Think about it before you buy.", "사기 전에 생각해 봐."], ["It's too expensive.", "그건 너무 비싸."], ["You can buy it with your allowance.", "용돈으로 사도 돼."]], "용돈"],
 ];
 
 const phrasal = [
@@ -116,6 +178,11 @@ const phrasal = [
   ["warm up", "몸을 풀다; 데우다", [["Let's warm up before we run.", "뛰기 전에 몸 풀자."], ["I'll warm up your soup.", "수프 데워 줄게."], ["Warm up your hands.", "손 녹여."]]],
   ["sleep over", "친구 집에서 자고 오다", [["Can Mina sleep over tonight?", "미나 오늘 우리 집에서 자도 돼요?"], ["I want to sleep over at Jun's house.", "준이네서 자고 싶어요."], ["Pack your things for the sleepover.", "자고 올 짐 챙겨."]]],
   ["eat up", "남김없이 먹다", [["Eat up your dinner.", "저녁 다 먹어."], ["Good job! You ate it all up.", "잘했어! 다 먹었네."], ["Eat up, or it'll get cold.", "얼른 먹어, 식어."]]],
+  ["slow down", "천천히 하다", [["Slow down! Don't run.", "천천히! 뛰지 마."], ["Slow down when you eat.", "천천히 먹어."], ["Slow down, I can't understand you.", "천천히 말해, 무슨 말인지 모르겠어."]]],
+  ["come over", "(집에) 놀러 오다", [["Can Jun come over today?", "준이 오늘 놀러 와도 돼요?"], ["Grandpa is coming over for dinner.", "할아버지가 저녁 드시러 오셔."], ["Come over here.", "이리 와."]]],
+  ["get in", "(차에) 타다", [["Get in the car, please.", "차에 타."], ["Get in the back seat.", "뒷자리에 타."], ["Watch your head when you get in.", "탈 때 머리 조심해."]]],
+  ["get off", "(버스·지하철에서) 내리다", [["We get off here.", "여기서 내려."], ["Get off the bus carefully.", "버스에서 조심히 내려."], ["Don't get off the swing yet.", "아직 그네에서 내리지 마."]]],
+  ["take care of", "돌보다, 챙기다", [["Take care of your little brother.", "남동생 잘 돌봐."], ["Who takes care of the plants?", "식물은 누가 돌봐?"], ["I'll take care of it.", "내가 할게."]]],
 ];
 
 const words = [
@@ -169,6 +236,16 @@ const words = [
   ["bored", "심심한", [["I'm bored.", "심심해요."], ["Are you bored?", "심심해?"], ["Let's find something fun.", "재밌는 거 찾아보자."]]],
   ["early", "일찍", [["Go to bed early tonight.", "오늘 밤엔 일찍 자."], ["We're early!", "우리 일찍 왔네!"], ["I got up early.", "일찍 일어났어요."]]],
   ["late", "늦은, 늦게", [["Don't be late.", "늦지 마."], ["It's getting late.", "시간이 늦었네."], ["Sorry I'm late.", "늦어서 미안해."]]],
+  ["fever", "열", [["Does he have a fever?", "걔 열 있어?"], ["The fever went down.", "열 내렸어."], ["I had a fever last night.", "어젯밤에 열이 났어요."]]],
+  ["medicine", "약", [["Time for your medicine.", "약 먹을 시간이야."], ["This medicine is sweet.", "이 약 달아."], ["Keep the medicine away from your sister.", "약은 동생 손 안 닿게 둬."]]],
+  ["cough", "기침", [["You have a bad cough.", "기침이 심하네."], ["Drink warm water for your cough.", "기침엔 따뜻한 물 마셔."], ["Is your cough better?", "기침 좀 나아졌어?"]]],
+  ["seat belt", "안전벨트", [["Put on your seat belt.", "안전벨트 매."], ["My seat belt is stuck.", "안전벨트가 안 빠져요."], ["Everyone needs a seat belt.", "모두 안전벨트 해야 해."]]],
+  ["cart", "카트", [["Put it in the cart.", "카트에 넣어."], ["Don't stand on the cart.", "카트에 올라타지 마."], ["The cart is full.", "카트가 꽉 찼네."]]],
+  ["piggy bank", "저금통", [["Put the coin in your piggy bank.", "동전 저금통에 넣어."], ["My piggy bank is heavy!", "저금통 무거워요!"], ["Let's open your piggy bank.", "저금통 열어 보자."]]],
+  ["sunscreen", "선크림", [["Did you put on sunscreen?", "선크림 발랐어?"], ["Rub it in well.", "잘 문질러 발라."], ["Put sunscreen on your face, too.", "얼굴에도 선크림 발라."]]],
+  ["playdate", "친구랑 놀기로 한 약속", [["You have a playdate on Saturday.", "토요일에 친구랑 놀기로 했어."], ["Can we have a playdate?", "같이 놀 약속 잡아도 돼요?"], ["How was your playdate?", "친구랑 논 거 어땠어?"]]],
+  ["grandma", "할머니", [["Grandma loves you.", "할머니가 널 사랑하셔."], ["Let's visit Grandma.", "할머니 댁에 가자."], ["Grandma made dinner.", "할머니가 저녁 해 주셨어."]]],
+  ["sweater", "스웨터", [["Wear your sweater.", "스웨터 입어."], ["This sweater is soft.", "이 스웨터 부드럽다."], ["Your sweater is inside out.", "스웨터 뒤집어 입었네."]]],
 ];
 
 // 하루말 퀴즈 형식: w(영어) m(뜻) ex/exk(기본 예문) xs(예문 더 보기) sit(상황) note(팁)
