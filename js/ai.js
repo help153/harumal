@@ -192,14 +192,14 @@ export function generationRequest(kind, lang, topic, known) {
       prompt: isJa
         ? `Create 8 easy Japanese vocabulary items for a Korean native speaker who is a beginner (JLPT N5 level, at most easy N4) about the topic: "${t}". Prefer short, very common words people use in daily conversation. Example sentences must be short and simple, in polite です/ます form, using only beginner grammar and vocabulary.
 Fields: w = the word as normally written (kanji if common), r = reading in hiragana, m = short Korean meaning, ex = a short natural example sentence, exr = the example in hiragana, exk = Korean translation of the example.${avoid}`
-        : `Create 8 easy English words that a Korean parent uses at home with an elementary-school child, about the topic: "${t}". Prefer everyday family-life words (home, school, meals, play, chores, feelings). Example sentences are short things a parent or child would really say at home.
+        : `Create 8 upper-intermediate English business words for a Korean business owner who does international trade, about the topic: "${t}". Prefer words really used in trade, logistics, payments, negotiation, email and messaging with overseas partners. Example sentences sound like real business emails or calls.
 Fields: w = the word or phrase, m = short Korean meaning, ex = a short natural example sentence, exk = Korean translation of the example.${avoid}`,
     };
   }
   if (kind === "expr") {
     return {
       schema: listSchema(obj(isJa ? ["t", "r", "ko", "sit", "note"] : ["t", "ko", "sit", "note"])),
-      prompt: `Create 6 natural, frequently used everyday ${L} expressions for a Korean native speaker about the situation: "${t}". Use real spoken phrases people actually say, not textbook sentences.${isJa ? " Keep them short and easy enough for a beginner (JLPT N5-N4)." : " They are things a parent says to an elementary-school child at home or outside (like \"Wake up!\", \"Did you finish your homework?\", \"It's time for bed.\"), short and easy."}
+      prompt: `Create 6 natural, frequently used everyday ${L} expressions for a Korean native speaker about the situation: "${t}". Use real spoken phrases people actually say, not textbook sentences.${isJa ? " Keep them short and easy enough for a beginner (JLPT N5-N4)." : " They are upper-intermediate business expressions a Korean trader uses with overseas partners in meetings, negotiations, emails or WhatsApp messages. Use a situation label such as 무역·거래, 가격·협상, 물류·배송, 결제, 품질·클레임, 이메일, 왓츠앱."}
 Fields: t = the ${L} expression,${isJa ? " r = reading in hiragana," : ""} ko = the natural Korean equivalent, sit = a situation label in Korean (2-6 characters), note = one short usage tip in Korean, or "".${avoid}`,
     };
   }
@@ -209,7 +209,7 @@ Fields: t = the ${L} expression,${isJa ? " r = reading in hiragana," : ""} ko = 
     prompt: isJa
       ? `Create 6 easy Japanese set phrases for a beginner Korean learner (JLPT N5-N4) that relate to: "${t}". Prefer everyday collocations like お腹がすく, 風邪をひく, 写真を撮る and only the most common, easy 慣用句 like 気をつける. No literary proverbs or rare idioms. Example sentences must be short and simple, using only beginner grammar.
 Fields: w = the idiom as normally written, r = reading in hiragana, m = its meaning in short natural Korean (use a matching Korean idiom when one exists), ex = a short natural example sentence, exr = the example in hiragana, exk = Korean translation of the example.${avoid}`
-      : `Create 6 easy English phrasal verbs or short set phrases that a parent uses every day with an elementary-school child, related to: "${t}" (like wake up, put on, clean up, hurry up). Example sentences are short things a parent or child would really say at home.
+      : `Create 6 English business phrasal verbs or idioms that native speakers use in meetings, emails and messages with partners, related to: "${t}" (like follow up, touch base, iron out, fall through). Upper-intermediate level. Example sentences sound like real business emails or calls.
 Fields: w = the idiom, m = its meaning in short natural Korean (use a matching Korean idiom when one exists), ex = a short natural example sentence, exk = Korean translation of the example.${avoid}`,
   };
 }

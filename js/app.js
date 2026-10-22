@@ -12,7 +12,7 @@ sp.configure({ ...K, slow: P.slow });
 const R = {
   sess: { ja: {}, en: {} },
   chat: { ja: null, en: null },
-  pick: { ja: { sc: "cafe", lv: 0 }, en: { sc: "cafe", lv: 1 } },
+  pick: { ja: { sc: "cafe", lv: 0 }, en: { sc: "nego", lv: 2 } },
   open: {}, topic: {}, gen: {}, explain: {}, shadow: {}, mic: null, msg: {}, pendingImport: null, installEvt: null,
 };
 const IV = [0, 1, 3, 7, 14, 30, 60]; // 익힘 단계별 다음 복습까지 일 수
@@ -122,7 +122,7 @@ function streak() {
 }
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.21";
+const APP_VERSION = "2026.10.22";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "vocab", label: "단어", icon: ICON.vocab },
@@ -178,7 +178,10 @@ function quizQueue(key) {
     const biz = (it) => /비즈니스/.test(it.sit || "");
     const parts = P.lang === "ja"
       ? [["vocab", 5], ["kanji", 2], ["idiom", 1], ["expr", 1, (it) => !biz(it)], ["expr", 1, biz]]
-      : [["vocab", 4], ["idiom", 2], ["expr", 4]];
+      // 영어(비즈니스): 단어 3 · 숙어 3 · 표현 4 (무역·협상 2 + 이메일 1 + 왓츠앱 1)
+      : [["vocab", 3], ["idiom", 3],
+         ["expr", 2, (it) => it.sit !== "이메일" && it.sit !== "왓츠앱"],
+         ["expr", 1, (it) => it.sit === "이메일"], ["expr", 1, (it) => it.sit === "왓츠앱"]];
     return shuffle(parts.flatMap(([kind, n, f]) => buildQueue(kind, n, f).map((it) => ({ kind, it }))));
   }
   return buildQueue(key, 10).map((it) => ({ kind: key, it }));
@@ -198,7 +201,7 @@ function quizCard(key) {
   if (!s.st || s.st.id !== it.id) {
     const others = shuffle(pool(kind).filter((x) => x.id !== it.id && x.m !== it.m)).slice(0, 3);
     // 일본어는 쉽게: 대부분 '단어 보고 뜻 고르기'로 내고, 한국어 보고 일본어 고르기는 가끔만
-    const easyDir = P.lang === "ja" ? ({ vocab: 0.95, kanji: 0.9, idiom: 1, expr: 0.95 }[kind] ?? 0.95) : ({ idiom: 0.75, expr: 0.7 }[kind] ?? 0.6);
+    const easyDir = P.lang === "ja" ? ({ vocab: 0.95, kanji: 0.9, idiom: 1, expr: 0.95 }[kind] ?? 0.95) : 0.5; // 영어는 어렵게: 절반은 '한국어 보고 영어 고르기'
     s.st = { id: it.id, dir: Math.random() < easyDir ? 0 : 1, choices: shuffle([it, ...others]), chosen: null };
   }
   const st = s.st, ja = isJa();

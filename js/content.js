@@ -1,6 +1,6 @@
 // 기본 학습 콘텐츠: 단어, 한자, 숙어, 일상 표현, 회화 상황
 import { PHRASES } from "./phrases.js";
-import { FAMILY } from "./family-en.js";
+import { BIZ } from "./business-en.js";
 import { MORE } from "./examples.js";
 import { KANJI_EXTRA } from "./kanji-meaning.js";
 export const BASE = {
@@ -169,9 +169,9 @@ idiom: [
 ].map(([w,r,m,ex,exr,exk],i)=>({id:"jj"+i,w,r,m,ex,exr,exk})),
 },
 en: {
-vocab: FAMILY.words,
-expr: FAMILY.sentences,
-idiom: FAMILY.phrasal,
+vocab: BIZ.words,
+expr: BIZ.sentences,
+idiom: BIZ.phrasal,
 }};
 
 export const SCEN = {
@@ -184,6 +184,8 @@ ja: [
  {id:"free", t:"자유 대화", d:"오늘 하루, 관심사", p:"You are a friendly Japanese conversation partner. Ask about the learner's day and interests and follow their lead."},
 ],
 en: [
+ {id:"nego", t:"바이어와 가격 협상", d:"해외 바이어와 단가·MOQ 협상", p:"You are a purchasing manager at an overseas import company talking with the learner, a Korean supplier. Negotiate unit price, MOQ, payment terms and delivery. Be polite but firm, like a real buyer."},
+ {id:"supply", t:"공급업체 납기 확인", d:"공급업체에 납기·선적 확인", p:"You are a sales manager at an overseas factory. The learner is your Korean customer checking on lead time, shipping schedule, documents and a small quality issue. Answer like a real supplier, sometimes with small delays or problems to solve."},
  {id:"cafe", t:"카페 주문", d:"시애틀의 바리스타와", p:"You are a barista at a busy café in Seattle. The learner is a customer ordering."},
  {id:"work", t:"동료와 스몰톡", d:"월요일 아침 사무실", p:"You are the learner's friendly coworker. It's Monday morning at the office; make small talk about the weekend and the week ahead."},
  {id:"road", t:"길 묻기", d:"런던 현지인에게", p:"You are a local in central London. The learner stopped you to ask for directions."},
