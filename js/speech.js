@@ -192,9 +192,16 @@ export function stopSpeaking() {
   try { speechSynthesis.cancel(); } catch {}
 }
 
+// 읽어 주기가 실패했을 때 앱이 화면에 안내를 띄울 수 있게 알려 준다
+let failHandler = null;
+export function onSpeakFail(fn) {
+  failHandler = fn;
+}
+
 export async function speak(text, lang) {
   if (!text) return { ok: false, error: "empty" };
   stopAudio();
+  let r;
   if (hasAzure()) {
     try { speechSynthesis.cancel(); } catch {}
     try {
@@ -212,10 +219,46 @@ export async function speak(text, lang) {
     }
   }
   try {
-    return await browserSpeak(text, lang);
+    r = await browserSpeak(text, lang);
   } catch {
-    return { ok: false, error: "exception" };
+    r = { ok: false, error: "exception" };
   }
+  if (!r.ok) try { failHandler?.(r.error, lang, browserVoiceName(lang)); } catch {}
+  return r;
+}
+
+/* ───────── 효과음 ───────── */
+// 파일 없이 Web Audio로 직접 만드는 짧은 소리. 첫 터치 때 깨워 둔 오디오를 쓴다.
+let sfxOn = true;
+export function setSfx(on) {
+  sfxOn = on;
+}
+function tone(c, freq, at, dur, type = "triangle", vol = 0.18) {
+  const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + at;
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(c.destination);
+  o.start(t);
+  o.stop(t + dur + 0.05);
+}
+// kind: right(맞힘) · wrong(틀림) · done(세트 완료) · streak(오늘 목표 달성)
+export function sfx(kind) {
+  if (!sfxOn) return;
+  try {
+    const c = audioCtx();
+    if (c.state === "suspended") c.resume();
+    if (kind === "right") { tone(c, 880, 0, 0.12); tone(c, 1318.5, 0.09, 0.25); }
+    else if (kind === "wrong") { tone(c, 233, 0, 0.16, "square", 0.05); tone(c, 196, 0.13, 0.24, "square", 0.05); }
+    else if (kind === "done") [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, f, i * 0.1, 0.28));
+    else if (kind === "streak") {
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(c, f, i * 0.08, 0.3, "triangle", 0.2));
+      tone(c, 1568, 0.45, 0.6, "sine", 0.15);
+    }
+  } catch {}
+  try { navigator.vibrate?.(kind === "wrong" ? [30, 40, 30] : kind === "right" ? 15 : [20, 40, 20, 40, 60]); } catch {}
 }
 
 /* ───────── 말하기 인식 + 발음 평가 ───────── */

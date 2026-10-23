@@ -19,3 +19,5 @@ body { font-size: 16px; }
 .wrong-list b { font-size: 13px; color: var(--muted); }
 ul.items li { grid-template-columns: 1fr; }
 .nav button { font-size: 11px; }
+ul.items li.mark-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+ul.items li.mark-row > div { min-width: 0; }
