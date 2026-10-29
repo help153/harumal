@@ -11,6 +11,12 @@ export function emptyState() {
     stats: { days: {}, done: {} },
     explain: { ja: {}, en: {} }, // 퀴즈 '자세히 설명'으로 받은 설명 (항목 id별)
     marks: { ja: {}, en: {} }, // 북마크: "종류:id" → 표시한 시각
+    lv: { ja: 1, en: 1 }, // 회화 단계 (1~6)
+    lvSet: { ja: false, en: false }, // 시작 단계를 골랐는지
+    tests: [], // 단계 시험 기록 {date, lang, lv, right, total, pct, passed}
+    talks: [], // AI 대화 평가 기록 {date, lang, lv, scene, fluency, accuracy, naturalness, summary}
+    speak: { ja: { ok: 0, n: 0, mic: 0 }, en: { ok: 0, n: 0, mic: 0 } }, // 말해 보기 결과
+    lessons: {}, // 오늘의 학습 완료 기록 "날짜:언어" → {lv, speak:[맞음,전체], listen:[맞음,전체]}
     prefs: { pv: 3, lang: "ja", tab: "today", showReading: true, autoSend: true, autoSpeak: true, autoReveal: true, kanjiHint: true, sfx: true, slow: false },
   };
 }
@@ -28,6 +34,10 @@ export function normalize(raw) {
       if (Array.isArray(list)) s.custom[lang][kind] = list;
     }
   }
+  for (const k of ["lv", "lvSet", "speak"]) if (raw[k] && typeof raw[k] === "object") for (const l of ["ja", "en"]) if (raw[k][l] != null) s[k][l] = raw[k][l];
+  if (Array.isArray(raw.tests)) s.tests = raw.tests;
+  if (Array.isArray(raw.talks)) s.talks = raw.talks;
+  if (raw.lessons && typeof raw.lessons === "object") s.lessons = raw.lessons;
   if (raw.stats?.days && typeof raw.stats.days === "object") s.stats.days = raw.stats.days;
   if (raw.stats?.done && typeof raw.stats.done === "object") s.stats.done = raw.stats.done;
   if (raw.prefs && typeof raw.prefs === "object") Object.assign(s.prefs, raw.prefs);
@@ -38,7 +48,9 @@ export function normalize(raw) {
     s.prefs.autoReveal = true;
     s.prefs.tab = "today";
   }
-  s.prefs.pv = 3;
+  // v4: 회화 중심 단계형으로 개편. 첫 화면은 '오늘의 학습'
+  if (raw.prefs && !(raw.prefs.pv >= 4)) s.prefs.tab = "today";
+  s.prefs.pv = 4;
   return s;
 }
 

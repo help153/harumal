@@ -124,12 +124,12 @@ export const CHAT_SCHEMA = {
   additionalProperties: false,
 };
 
-export function chatSystem({ langName, isJa, scenario, level }) {
+export function chatSystem({ langName, isJa, scenario, level, mission = [] }) {
   return `You are a conversation partner helping a Korean native speaker practice spoken ${langName}.
 
 Scenario: ${scenario}
 Learner level: ${level}.
-
+${mission.length ? `Today's target phrases (the learner just studied them; steer the talk so they get natural chances to use each one): ${mission.join(" / ")}\n` : ""}
 How to reply:
 - Stay in character. "reply" is ${langName} only: 1-2 short, natural spoken sentences at the learner's level${isJa ? ", in polite です/ます form unless the scenario says the speakers are friends" : ""}. Usually end with something the learner can answer, so the conversation keeps going.
 - "reading": ${isJa ? "the reply written entirely in hiragana and katakana" : "an empty string"}.
@@ -139,6 +139,57 @@ How to reply:
   - If the learner wrote Korean (or mixed Korean in), set "fixed" to the natural ${langName} way to say it, explain briefly in Korean in "why", and reply as if they had said it.
   - If the message is already natural, or there is no learner message yet, set every feedback field to "".
 - "hints": 2-3 short things the learner could say next, in ${langName}, at their level.`;
+}
+
+/* ───────── 대화 평가 ───────── */
+
+const SCORE = { type: "integer" };
+
+export const EVAL_SCHEMA = {
+  type: "object",
+  properties: {
+    fluency: SCORE,
+    accuracy: SCORE,
+    naturalness: SCORE,
+    summary: { type: "string" },
+    good: { type: "string" },
+    fixes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { said: { type: "string" }, better: { type: "string" }, reading: { type: "string" }, why: { type: "string" } },
+        required: ["said", "better", "reading", "why"],
+        additionalProperties: false,
+      },
+    },
+    used: { type: "array", items: { type: "string" } },
+  },
+  required: ["fluency", "accuracy", "naturalness", "summary", "good", "fixes", "used"],
+  additionalProperties: false,
+};
+
+// 대화 기록 전체를 보고 말하기 실력을 1~5로 평가한다.
+export function evalRequest({ langName, isJa, scenario, level, mission = [], transcript }) {
+  return {
+    system: `You are a strict but encouraging ${langName} speaking coach for a Korean native speaker. Write all comments in natural, plain Korean.`,
+    prompt: `Evaluate the learner's side of this role-play conversation.
+
+Scenario: ${scenario}
+Learner's current level: ${level}
+${mission.length ? `Target phrases for today: ${mission.join(" / ")}\n` : ""}
+Conversation (the learner's lines often come from speech recognition, so ignore punctuation, spacing and obvious transcription slips):
+${transcript}
+
+Fields:
+- fluency (1-5): could they keep the conversation going with full answers, without falling back to Korean? 5 = smooth and natural, 3 = short but workable, 1 = mostly Korean or one word.
+- accuracy (1-5): grammar and word choice. 5 = no real mistakes.
+- naturalness (1-5): would a native speaker say it this way in this situation${isJa ? " (including the right politeness level)" : ""}?
+- summary: 2 short Korean sentences on how they did overall, compared to the level.
+- good: one thing they did well, in Korean.
+- fixes: up to 3 of the learner's lines that most need fixing. said = what they said, better = a natural ${langName} version, reading = ${isJa ? "better in hiragana" : '""'}, why = one short Korean sentence.
+- used: which of the target phrases they actually used (copy them exactly; empty if none or no target phrases).`,
+    schema: EVAL_SCHEMA,
+  };
 }
 
 /* ───────── 퀴즈 항목 자세히 설명 ───────── */

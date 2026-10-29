@@ -3,6 +3,7 @@ import * as store from "./store.js";
 import * as ai from "./ai.js";
 import * as sp from "./speech.js";
 import { GOAL, streakInfo, streakCard, milestone } from "./streak.js";
+import { CURRICULUM, MAX_LEVEL, levelOf } from "./curriculum.js";
 
 /* ───────── 상태 ───────── */
 // S: 기기에 저장되는 학습 상태, K: API 키와 음성 설정, R: 화면에만 있는 임시 상태
@@ -14,7 +15,8 @@ sp.setSfx(P.sfx !== false);
 const R = {
   sess: { ja: {}, en: {} },
   chat: { ja: null, en: null },
-  pick: { ja: { sc: "cafe", lv: 0 }, en: { sc: "nego", lv: 2 } },
+  pick: { ja: { sc: "cafe", lv: chatDiff(S.lv.ja) }, en: { sc: "nego", lv: chatDiff(S.lv.en) } },
+  lesson: { ja: null, en: null }, test: { ja: null, en: null },
   open: {}, topic: {}, gen: {}, explain: {}, shadow: {}, mic: null, msg: {}, pendingImport: null, installEvt: null,
 };
 const IV = [0, 1, 3, 7, 14, 30, 60]; // 익힘 단계별 다음 복습까지 일 수
@@ -68,6 +70,8 @@ const ICON = {
   idiom: '<path d="M10 7H6a2 2 0 0 0-2 2v3h5v5H4"/><path d="M20 7h-4a2 2 0 0 0-2 2v3h5v5h-5"/>',
   kanji: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M12 7v10M8 13h8"/>',
   chat: '<path d="M7 10h.01M12 10h.01M17 10h.01"/><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/>',
+  level: '<path d="M3 20h5v-5h5v-5h5V5h3"/>',
+  chart: '<path d="M4 20h16"/><path d="M7 16v-4M12 16V7M17 16v-7"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -149,15 +153,24 @@ sp.onSpeakFail((error, lang, voiceName) => {
 });
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.23";
+const APP_VERSION = "2026.10.29";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
-  { id: "vocab", label: "단어", icon: ICON.vocab },
-  { id: "kanji", label: "한자", icon: ICON.kanji, ja: true }, // 일본어일 때만
-  { id: "idiom", label: "숙어", icon: ICON.idiom },
-  { id: "expr", label: "표현", icon: ICON.expr },
+  { id: "level", label: "단계", icon: ICON.level },
+  { id: "chat", label: "회화", icon: ICON.chat },
+  { id: "progress", label: "실력", icon: ICON.chart },
   { id: "settings", label: "설정", icon: ICON.gear },
 ];
+// 하단 탭에 없는 화면(복습 퀴즈·시험)은 '단계' 탭에 속한다
+const NAV_OF = { quiz: "level", vocab: "level", kanji: "level", idiom: "level", expr: "level", marks: "level", test: "level" };
+function go(tab) {
+  R.mic?.abort();
+  if (tab === "test" && R.test[P.lang]?.done) R.test[P.lang] = null; // 끝난 시험은 새로 시작
+  P.tab = tab;
+  persist();
+  render();
+  scrollTo(0, 0);
+}
 function renderStats() {
   const info = streakInfo(S.stats.days);
   const pill = $("#streak");
@@ -170,16 +183,19 @@ function renderChrome() {
   $("#mark").textContent = LANG[P.lang].mark;
   $("#lang-ja").setAttribute("aria-pressed", String(P.lang === "ja"));
   $("#lang-en").setAttribute("aria-pressed", String(P.lang === "en"));
-  if (P.tab === "kanji" && P.lang !== "ja") P.tab = "today";
+  if (P.tab === "kanji" && P.lang !== "ja") P.tab = "level";
+  const cur = NAV_OF[P.tab] || P.tab;
   $("#nav").replaceChildren(
-    ...TABS.filter((t) => !t.ja || P.lang === "ja").map((t) =>
-      el("button", { type: "button", "aria-current": P.tab === t.id ? "page" : null, onclick: () => { if (P.tab !== t.id) { P.tab = t.id; persist(); render(); scrollTo(0, 0); } } }, svg(t.icon), el("span", null, t.label))
+    ...TABS.map((t) =>
+      el("button", { type: "button", "aria-current": cur === t.id ? "page" : null, onclick: () => { if (P.tab !== t.id) go(t.id); } }, svg(t.icon), el("span", null, t.label))
     )
   );
   renderStats();
 }
 function renderPanel() {
-  const r = { today: renderToday, vocab: () => renderQuizTab("vocab"), kanji: () => renderQuizTab("kanji"), idiom: () => renderQuizTab("idiom"), expr: () => renderQuizTab("expr"), marks: renderMarks, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
+  const r = { today: renderToday, level: renderLevel, test: renderTest, progress: renderProgress, quiz: () => renderQuizTab("today"),
+    vocab: () => renderQuizTab("vocab"), kanji: () => renderQuizTab("kanji"), idiom: () => renderQuizTab("idiom"), expr: () => renderQuizTab("expr"),
+    marks: renderMarks, chat: renderChat, settings: renderSettings }[P.tab] || renderToday;
   $("#panel").replaceChildren(r());
   if (P.tab === "chat") { const m = $(".msgs"); if (m) m.scrollTop = m.scrollHeight; }
 }
@@ -305,7 +321,7 @@ function quizCard(key) {
   }
   return el("div", { class: "card quiz", id: "quiz-" + key },
     el("div", { class: "row between" },
-      el("span", { class: "quiz-title" }, key === "today" ? "오늘의 퀴즈" : key === "marks" ? "북마크 퀴즈" : `${LABEL[kind]} 퀴즈`),
+      el("span", { class: "quiz-title" }, key === "today" ? "섞어 풀기" : key === "marks" ? "북마크 퀴즈" : `${LABEL[kind]} 퀴즈`),
       el("div", { class: "row", style: "gap:4px" },
         isMarked(kind, it.id) && key !== "marks" ? el("span", { class: "small mark-tag" }, "북마크") : null,
         el("span", { class: "small muted" }, `${Math.min(s.i + 1, s.queue.length)} / ${s.queue.length}`),
@@ -396,7 +412,7 @@ function answerQuiz(key, id) {
   if (ok) s.right++;
   grade(kind, it.id, ok);
   sp.sfx(ok ? "right" : "wrong");
-  if (P.autoReveal) setTimeout(() => sp.speak(it.w, P.lang), 320); // 효과음 다음에 정답 발음
+  if (P.autoReveal) setTimeout(() => { if (s.st?.id === it.id) sp.speak(it.w, P.lang); }, 320); // 효과음 다음에 정답 발음 (그새 넘어갔으면 생략)
   renderPanel();
   // 정답 설명이 고정된 다음 버튼에 가려지면, 문제가 화면 위로 넘어가지 않는 만큼만 올려 준다
   requestAnimationFrame(() => {
@@ -420,10 +436,10 @@ function nextQuiz(key) {
 function quizDone(key, s) {
   return el("div", { class: "card", id: "quiz-" + key },
     el("div", { class: "prompt" },
-      el("span", { class: "tag" }, key === "today" ? "오늘의 퀴즈 완료" : "세트 완료"),
+      el("span", { class: "tag" }, "세트 완료"),
       el("div", { class: "mid" }, `${s.queue.length}문제 중 ${s.right}개를 맞혔어요.`),
       el("p", { class: "muted", style: "margin:0" }, "틀린 건 5분 뒤, 맞힌 건 익힘 단계에 따라 1일·3일·7일 뒤에 다시 나와요.")),
-    el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet(key) }, key === "today" ? "한 세트 더 풀기" : "다음 세트")));
+    el("div", { class: "row" }, el("button", { class: "btn", onclick: () => newSet(key) }, "다음 세트")));
 }
 
 function genBox(kind) {
@@ -557,7 +573,7 @@ function marksCard() {
 function renderMarks() {
   const items = markedItems();
   const wrap = el("div", { class: "stack" },
-    el("button", { type: "button", class: "link back", onclick: () => { P.tab = "today"; render(); } }, "← 오늘로 돌아가기"));
+    backLink());
   if (!items.length) {
     wrap.append(el("div", { class: "card" }, el("div", { class: "mid" }, "아직 북마크가 없어요"), el("p", { class: "muted", style: "margin:0" }, "퀴즈나 전체 목록에서 ☆을 누르면 여기에 모여요.")));
     return wrap;
@@ -573,27 +589,602 @@ function renderMarks() {
   return wrap;
 }
 function renderToday() {
+  const L = levelOf(P.lang, curLv()), st = lvStat(curLv());
   return el("div", { class: "stack" },
     streakCard(el, () => svg(ICON.flame), streakInfo(S.stats.days)),
-    marksCard(),
-    quizCard("today"),
-    el("button", { type: "button", class: "card link-card", onclick: () => { P.tab = "chat"; render(); scrollTo(0, 0); } },
-      el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI와 대화 연습")),
-      el("span", { class: "small muted" }, `상황을 골라 ${langKo()}로 짧게 대화해요`)));
+    S.lvSet[P.lang] ? null : placementCard(),
+    lessonCard(),
+    el("button", { type: "button", class: "card link-card", onclick: startMission },
+      el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI 회화 미션")),
+      el("span", { class: "small muted" }, `‘${L.name}’ 상황에서 오늘 표현을 직접 써 보고 평가받아요`)),
+    el("button", { type: "button", class: "card link-card", onclick: () => go("level") },
+      el("span", { class: "row" }, svg(ICON.level), el("b", null, `${L.lv}단계 진행 ${st.pct}%`)),
+      el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` })),
+      el("span", { class: "small muted" }, st.pct >= 70 ? "시험 볼 준비가 됐어요. 붙으면 다음 단계로 올라가요." : `익힌 표현 ${st.done}/${st.total}. 70%를 넘기면 단계 시험을 추천해요.`)));
+}
+
+/* ───────── 회화 단계: 오늘의 학습 · 단계 시험 · 실력 ───────── */
+// 단계마다 정해진 핵심 표현(curriculum.js)을 익히기 → 말하기 → 듣기 순서로 연습하고, 시험에 붙으면 다음 단계로 올라간다.
+const LEARNED = 2; // 익힘 단계 2 이상(이틀 이상 맞힘)이면 '익힌 표현'
+const TEST_N = 12, PASS_N = 9; // 시험 12문제 중 9개(75%) 맞히면 통과
+function curLv() { return S.lv[P.lang] || 1; }
+function chatDiff(lv) { return lv <= 2 ? 0 : lv <= 4 ? 1 : 2; } // 단계 → 회화 난이도(입문·초급·중급)
+const exprById = (id, lang = P.lang) => BASE[lang].expr.find((x) => x.id === id);
+const lvItems = (lv, lang = P.lang) => levelOf(lang, lv).ids.map((id) => exprById(id, lang)).filter(Boolean);
+const upTo = (lv, lang = P.lang) => CURRICULUM[lang].filter((L) => L.lv <= lv).flatMap((L) => lvItems(L.lv, lang));
+const bOf = (it, lang = P.lang) => S.prog[lang][pkey("expr", it.id)]?.b || 0;
+const exOf = (it) => (it.ex ? { t: it.ex, r: it.exr || "", ko: it.exk || "" } : it.xs?.[0] || null);
+const passedLv = (lv, lang = P.lang) => S.tests.some((t) => t.lang === lang && t.lv === lv && t.passed);
+const lessonKey = () => `${dkey(new Date())}:${P.lang}`;
+function lvStat(lv, lang = P.lang) {
+  const items = lvItems(lv, lang), done = items.filter((it) => bOf(it, lang) >= LEARNED).length;
+  return { total: items.length, done, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
+}
+// 오답 보기: 같은 단계 표현을 먼저 쓰고, 모자라면 다른 단계에서
+function distract(it, n, key) {
+  const out = [], seen = new Set([key(it)]);
+  for (const x of [...shuffle(lvItems(curLv())), ...shuffle(BASE[P.lang].expr)]) {
+    const k = key(x);
+    if (!k || seen.has(k) || x.id === it.id) continue;
+    seen.add(k); out.push(x);
+    if (out.length >= n) break;
+  }
+  return out;
+}
+function hintOf(it) {
+  if (isJa()) return it.w.slice(0, 2) + "…";
+  const w = it.w.split(" ");
+  return w.slice(0, w.length > 3 ? 2 : 1).join(" ") + " …";
+}
+function setLevel(lv) {
+  const L = levelOf(P.lang, lv);
+  S.lv[P.lang] = lv; S.lvSet[P.lang] = true;
+  R.lesson[P.lang] = null; R.test[P.lang] = null;
+  R.pick[P.lang].lv = chatDiff(lv);
+  persist();
+  toast(`${lv}단계로 시작해요`, L.name);
+  renderPanel();
+}
+function placementCard() {
+  return el("div", { class: "card tight" },
+    el("h2", null, `${langKo()} 시작 단계 고르기`),
+    el("p", { class: "small muted", style: "margin:0" }, "지금 실력에 맞는 단계를 골라 주세요. 잘 모르겠으면 1단계부터 하고, 쉬우면 단계 시험으로 바로 올라가면 돼요. 나중에 ‘단계’ 화면에서 바꿀 수 있어요."),
+    el("div", { class: "lv-pick" }, CURRICULUM[P.lang].map((L) =>
+      el("button", { type: "button", class: "choice", onclick: () => setLevel(L.lv) }, el("b", null, `${L.lv}단계 · ${L.band}`), el("span", { class: "cm" }, L.name)))));
+}
+
+/* 오늘의 학습: 새 표현 3개 익히기 → 말해 보기 최대 6개(오늘 것 + 복습) → 듣고 뜻 고르기 3개 */
+function buildLesson() {
+  const lv = curLv(), items = lvItems(lv), now = Date.now(), P0 = (it) => prog("expr", it.id);
+  // 새 표현은 순서대로. 이 단계 표현을 다 봤으면 덜 익힌 것부터 다시 본다.
+  // 처음이라 복습할 표현이 없으면 새 표현을 4개로 해서 하루 목표(10문제)를 채운다.
+  const fresh = items.filter((it) => !P0(it)), seen = upTo(lv).filter((it) => P0(it));
+  const learn = [...fresh, ...items.filter((it) => P0(it)).sort((a, b) => bOf(a) - bOf(b))].slice(0, seen.length < 3 ? 4 : 3);
+  const due = seen.filter((it) => !learn.includes(it) && P0(it).due <= now).sort((a, b) => P0(a).due - P0(b).due);
+  let speak = [...learn, ...due.slice(0, 3)];
+  // 말해 보기는 이미 배운 표현으로만 채운다 (이 단계 먼저, 다음은 앞 단계)
+  for (const src of [items, upTo(lv)]) {
+    if (speak.length >= 6) break;
+    speak = speak.concat(shuffle(src.filter((it) => P0(it) && !speak.includes(it))).slice(0, 6 - speak.length));
+  }
+  return { date: dkey(new Date()), lv, step: "learn", i: 0, st: null, learn, speak: shuffle(speak), listen: shuffle(speak).slice(0, 3), res: { speak: [0, 0], listen: [0, 0] } };
+}
+function lessonSess() {
+  let s = R.lesson[P.lang];
+  if (!s || s.date !== dkey(new Date()) || s.lv !== curLv()) {
+    s = R.lesson[P.lang] = buildLesson();
+    if (S.lessons[lessonKey()]?.lv === s.lv) s.step = "done"; // 오늘 이미 끝냈으면 결과부터
+  }
+  return s;
+}
+const STEPS = [["learn", "익히기"], ["speak", "말하기"], ["listen", "듣기"]];
+function lessonCard() {
+  const s = lessonSess();
+  if (s.step === "done") return lessonDone(s);
+  const total = s.learn.length + s.speak.length + s.listen.length;
+  const pos = { learn: 0, speak: s.learn.length, listen: s.learn.length + s.speak.length }[s.step] + s.i;
+  const at = STEPS.findIndex((x) => x[0] === s.step);
+  return el("div", { class: "card quiz lesson", id: "lesson" },
+    el("div", { class: "row between" },
+      el("span", { class: "quiz-title" }, `오늘의 학습 · ${s.lv}단계`),
+      el("div", { class: "steps" }, STEPS.map(([k, t], n) => el("span", { class: "step" + (n === at ? " on" : n < at ? " done" : "") }, `${n + 1} ${t}`)))),
+    el("div", { class: "progress" }, el("span", { style: `width:${(pos / total) * 100}%` })),
+    s.step === "learn" ? lessonLearn(s) : s.step === "speak" ? lessonSpeak(s) : lessonListen(s));
+}
+const nextBar = (label, fn) => [el("div", { class: "next-spacer" }), el("div", { class: "next-bar" }, el("button", { class: "btn", id: "next-btn", onclick: fn }, label))];
+function lessonNext(s) {
+  R.mic?.abort();
+  s.st = null; s.i++;
+  if (s.i >= s[s.step].length) {
+    s.i = 0;
+    s.step = { learn: "speak", speak: "listen", listen: "done" }[s.step];
+    if (s.step === "done") finishLesson(s);
+  }
+  renderPanel();
+  if (s.step === "learn" && P.autoReveal) sp.speak(s.learn[s.i].w, P.lang);
+  if (s.step === "listen") setTimeout(() => sp.speak(s.listen[s.i].w, P.lang), 200);
+  const card = $("#lesson");
+  if (card && card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+function lessonLearn(s) {
+  const it = s.learn[s.i], ja = isJa(), e = exOf(it), last = s.i + 1 >= s.learn.length;
+  return [
+    el("div", { class: "prompt" },
+      el("span", { class: "tag" }, `${prog("expr", it.id) ? "다시 보기" : "새 표현"} ${s.i + 1}/${s.learn.length}${it.sit ? " · " + it.sit : ""}`),
+      say(it.w, "expr-say tl"),
+      ja && it.r ? el("div", { class: "rd" }, it.r) : null,
+      el("div", { class: "mid" }, it.m),
+      ja ? kanjiHints(it.w) : null),
+    it.note ? el("div", { class: "note" }, el("b", null, "팁 "), it.note) : null,
+    e ? el("div", { class: "examples" }, el("b", null, "예문"),
+      el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko))) : null,
+    shadowBox("L" + it.id, it.w),
+    el("div", { class: "row", style: "justify-content:flex-end" }, markBtn("expr", it)),
+    nextBar(last ? "다 봤어요. 말해 보기 →" : "다음 표현 →", () => { bumpToday(); lessonNext(s); }),
+  ];
+}
+function lessonSpeak(s) {
+  const it = s.speak[s.i], ja = isJa(), canMic = sp.canListen();
+  const st = (s.st ||= { id: it.id, ok: null, heard: null });
+  const graded = st.ok != null;
+  const out = [el("div", { class: "prompt" },
+    el("span", { class: "tag" }, `말해 보기 ${s.i + 1}/${s.speak.length}${it.sit ? " · " + it.sit : ""}`),
+    el("div", { class: "mid" }, it.m),
+    st.shown ? null : el("span", { class: "small muted" }, `${langKo()}로 소리 내어 말해 보세요`),
+    !st.shown && st.hint ? el("div", { class: "hint-line tl" }, "힌트: ", hintOf(it)) : null)];
+  if (!st.shown) {
+    out.push(el("div", { class: "speak-act" },
+      canMic ? el("button", { class: "mic-btn big" + (st.busy ? " on" : ""), type: "button", onclick: () => lessonMic(s) }, svg(st.busy ? ICON.stop : ICON.mic), st.busy ? "듣는 중… 누르면 멈춰요" : "누르고 말하기") : null,
+      st.busy ? el("div", { class: "small muted tl", id: "partial-speak" }, st.partial || "") : null,
+      st.err ? el("div", { class: "status err" }, st.err) : null,
+      el("div", { class: "row", style: "justify-content:center" },
+        st.hint ? null : el("button", { class: "link quiet", onclick: () => { st.hint = true; renderPanel(); } }, "힌트"),
+        el("button", { class: canMic ? "link quiet" : "btn", onclick: () => { R.mic?.abort(); st.shown = true; renderPanel(); if (P.autoReveal) sp.speak(it.w, P.lang); } }, canMic ? "정답 보기" : "말해 보고 정답 보기"))));
+    return out;
+  }
+  out.push(el("div", { class: "result " + (graded ? (st.ok ? "ok" : "no") : "plain") },
+    graded ? el("div", { class: "head" }, st.ok ? (st.mic ? "잘 말했어요!" : "좋아요") : "곧 다시 나와요") : el("div", { class: "head" }, "정답과 비교해 보세요"),
+    el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null),
+    ja ? kanjiHints(it.w) : null,
+    st.heard != null ? el("div", { class: "small" }, "들린 말: ", el("span", { class: "tl" }, st.heard || "—"), ` · 일치율 ${st.score}`) : null,
+    graded && it.note ? el("div", { class: "small" }, el("b", null, "팁 "), it.note) : null));
+  if (!graded)
+    out.push(el("div", { class: "row", style: "justify-content:center" },
+      el("button", { class: "btn", onclick: () => speakGrade(s, true, false) }, "맞게 말했어요"),
+      el("button", { class: "btn ghost", onclick: () => speakGrade(s, false, false) }, "틀렸어요"),
+      canMic ? el("button", { class: "btn ghost", onclick: () => { st.shown = false; st.heard = null; lessonMic(s); } }, "다시 말하기") : null));
+  else out.push(nextBar(s.i + 1 >= s.speak.length ? "듣기로 →" : "다음 →", () => lessonNext(s)));
+  return out;
+}
+async function lessonMic(s) {
+  const st = s.st, it = s.speak[s.i];
+  if (st.busy) { R.mic?.abort(); return; }
+  R.mic?.abort();
+  const ctl = new AbortController();
+  R.mic = ctl;
+  st.busy = true; st.err = ""; st.partial = "";
+  renderPanel();
+  try {
+    const res = await sp.listen(P.lang, { reference: it.w, signal: ctl.signal, onPartial: (t) => { st.partial = t; const n = $("#partial-speak"); if (n) n.textContent = t; } });
+    st.heard = res.text || "";
+    st.score = res.score ? res.score.pron : sp.roughMatch(res.text, it.w, P.lang);
+    st.shown = true;
+    if (st.score >= 70) speakGrade(s, true, true); // 거의 맞게 말하면 바로 정답 처리
+    else if (P.autoReveal) sp.speak(it.w, P.lang);
+  } catch (e) {
+    if (e.code !== "cancelled") st.err = e.message;
+  } finally {
+    st.busy = false;
+    if (R.mic === ctl) R.mic = null;
+    renderPanel();
+  }
+}
+function speakGrade(s, ok, mic) {
+  const st = s.st, it = s.speak[s.i], sk = S.speak[P.lang];
+  if (!st || st.ok != null) return;
+  st.ok = ok; st.mic = mic;
+  sk.n++; if (ok) sk.ok++; if (ok && mic) sk.mic++;
+  s.res.speak[1]++; if (ok) s.res.speak[0]++;
+  grade("expr", it.id, ok);
+  sp.sfx(ok ? "right" : "wrong");
+  if (mic && P.autoReveal) setTimeout(() => { if (s.st === st) sp.speak(it.w, P.lang); }, 320); // 맞힌 뒤 원어민 발음으로 한 번 더
+  renderPanel();
+}
+function lessonListen(s) {
+  const it = s.listen[s.i], ja = isJa();
+  const st = (s.st ||= { id: it.id, choices: shuffle([it, ...distract(it, 3, (x) => x.m)]), chosen: null });
+  const btns = st.choices.map((c, i) => {
+    let cls = "choice";
+    if (st.chosen) { cls += c.id === it.id ? " right" : c.id === st.chosen ? " wrong" : " done"; if (st.anim) cls += " anim"; }
+    return el("button", { class: cls, onclick: () => (st.chosen ? sp.speak(c.w, P.lang) : listenAnswer(s, c.id)) },
+      st.chosen ? null : el("span", { class: "k" }, i + 1),
+      st.chosen ? [el("span", { class: "tl cw" }, c.w), ja && c.r ? el("span", { class: "rd" }, c.r) : null] : null,
+      el("span", { class: st.chosen ? "cm" : null }, c.m));
+  });
+  st.anim = false;
+  return [
+    el("div", { class: "prompt" },
+      el("span", { class: "tag alt" }, `듣고 뜻 고르기 ${s.i + 1}/${s.listen.length}`),
+      el("button", { class: "play-big", type: "button", onclick: () => sp.speak(it.w, P.lang) }, svg(ICON.speaker), "다시 듣기"),
+      st.chosen ? el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null) : null),
+    el("div", { class: "choices" }, btns),
+    st.chosen ? nextBar(s.i + 1 >= s.listen.length ? "결과 보기" : "다음 →", () => lessonNext(s)) : null,
+  ];
+}
+function listenAnswer(s, id) {
+  const st = s.st, it = s.listen[s.i];
+  if (!st || st.chosen) return;
+  const ok = id === it.id;
+  st.chosen = id; st.anim = true;
+  s.res.listen[1]++; if (ok) s.res.listen[0]++;
+  bumpToday();
+  sp.sfx(ok ? "right" : "wrong");
+  renderPanel();
+}
+function finishLesson(s) {
+  const k = lessonKey(), old = S.lessons[k];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+  S.lessons[k] = old && old.lv === s.lv
+    ? { ...old, ids: [...new Set([...old.ids, ...s.learn.map((x) => x.id)])], speak: add(old.speak, s.res.speak), listen: add(old.listen, s.res.listen), n: (old.n || 1) + 1 }
+    : { lv: s.lv, ids: s.learn.map((x) => x.id), speak: s.res.speak, listen: s.res.listen, n: 1 };
+  persist();
+  sp.sfx("done");
+}
+// 미션 대화에서 써 볼 표현: 오늘 익힌 것, 없으면 지금 단계에서 덜 익힌 것
+function missionPhrases() {
+  const rec = S.lessons[lessonKey()];
+  const items = rec?.lv === curLv() ? rec.ids.map((id) => exprById(id)).filter(Boolean) : [];
+  return (items.length ? items : [...lvItems(curLv())].sort((a, b) => bOf(a) - bOf(b))).slice(0, 3);
+}
+function lessonDone(s) {
+  const rec = S.lessons[lessonKey()] || {}, st = lvStat(s.lv), ja = isJa();
+  const items = (rec.ids || []).map((id) => exprById(id)).filter(Boolean);
+  const [so, sn] = rec.speak || [0, 0], [lo, ln] = rec.listen || [0, 0];
+  return el("div", { class: "card quiz lesson", id: "lesson" },
+    el("div", { class: "prompt" },
+      el("span", { class: "tag ok" }, `오늘의 학습 완료 · ${s.lv}단계`),
+      el("div", { class: "mid" }, `말하기 ${so}/${sn} · 듣기 ${lo}/${ln}`),
+      el("p", { class: "muted", style: "margin:0" }, `이 단계 표현 ${st.done}/${st.total}개 익힘 (${st.pct}%). 이제 AI와 실제로 대화하면서 써 보세요.`)),
+    items.length ? el("div", { class: "examples" }, el("b", null, "오늘 익힌 표현"),
+      items.map((it) => el("div", { class: "example-box" }, say(it.w, "tl ex"), ja && it.r ? el("div", { class: "rd" }, it.r) : null, el("div", { class: "small muted" }, it.m)))) : null,
+    el("div", { class: "row" },
+      el("button", { class: "btn", onclick: startMission }, svg(ICON.chat), "AI 회화 미션"),
+      el("button", { class: "btn ghost", onclick: () => go("test") }, "단계 시험")),
+    el("button", { class: "link", style: "align-self:flex-start", onclick: () => { R.lesson[P.lang] = buildLesson(); renderPanel(); } },
+      lvItems(s.lv).some((it) => !prog("expr", it.id)) ? "새 표현 3개 더 하기" : "한 번 더 복습하기"));
+}
+
+/* 단계 화면: 지금 단계, 이 단계 표현, 전체 단계, 복습 퀴즈 */
+function levelCard() {
+  const lv = curLv(), L = levelOf(P.lang, lv), st = lvStat(lv);
+  const last = S.tests.filter((t) => t.lang === P.lang && t.lv === lv).at(-1);
+  const ready = st.pct >= 70, top = lv === MAX_LEVEL && passedLv(lv);
+  return el("div", { class: "card lv-card" },
+    el("div", { class: "row between" }, el("span", { class: "tag" }, `${lv}단계 · ${L.band}`), el("span", { class: "small muted" }, `${lv} / ${MAX_LEVEL}단계`)),
+    el("div", { class: "mid" }, L.name),
+    el("p", { class: "muted", style: "margin:0" }, "목표: " + L.goal),
+    el("div", { class: "goal" },
+      el("div", { class: "row between small" }, el("span", null, `익힌 표현 ${st.done} / ${st.total}`), el("b", null, st.pct + "%")),
+      el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` }))),
+    el("p", { class: "small " + (ready ? "ok-text" : "muted"), style: "margin:0" },
+      top ? "최고 단계까지 통과했어요! 회화 미션과 자유 대화로 실력을 다져 보세요."
+        : ready ? `시험 볼 준비가 됐어요. ${TEST_N}문제 중 ${PASS_N}개를 맞히면 ${lv + 1 > MAX_LEVEL ? "최고 단계 통과예요" : lv + 1 + "단계로 올라가요"}.`
+        : "표현을 70% 이상 익히면 시험을 추천해요. (서로 다른 날 2번 이상 맞힌 표현이 ‘익힘’)"),
+    last ? el("div", { class: "small muted" }, `지난 시험 ${last.date}: ${last.right}/${last.total} ${last.passed ? "통과" : "재도전"}`) : null,
+    el("div", { class: "row" },
+      el("button", { class: "btn" + (ready ? " ghost" : ""), onclick: () => go("today") }, "오늘의 학습"),
+      el("button", { class: "btn" + (ready ? "" : " ghost"), onclick: () => go("test") }, "단계 시험 보기")));
+}
+function renderLevel() {
+  const lang = P.lang, lv = curLv(), items = lvItems(lv), ja = isJa();
+  const quizzes = [["quiz", "섞어 풀기", ICON.today], ["vocab", "단어", ICON.vocab], ja ? ["kanji", "한자", ICON.kanji] : null, ["idiom", "숙어", ICON.idiom], ["expr", "표현", ICON.expr]].filter(Boolean);
+  return el("div", { class: "stack" },
+    levelCard(),
+    el("details", { class: "box", open: R.open.lvList ?? true, ontoggle: (e) => { R.open.lvList = e.target.open; } },
+      el("summary", null, `${lv}단계 표현 (${items.length})`),
+      el("div", { class: "boxbody" }, el("ul", { class: "items" }, items.map((it) =>
+        el("li", null,
+          el("div", { class: "w" }, say(it.w, "tl lw"), ja && it.r ? el("span", { class: "rd" }, it.r) : null),
+          el("div", { class: "m" }, it.m),
+          el("div", { class: "side" }, el("div", { class: "row", style: "gap:4px" }, dots(bOf(it)), markBtn("expr", it)))))))),
+    el("div", { class: "card tight" },
+      el("h2", null, "전체 단계"),
+      el("ol", { class: "lv-list" }, CURRICULUM[lang].map((L) => {
+        const st = lvStat(L.lv), cur = L.lv === lv, passed = passedLv(L.lv);
+        return el("li", { class: cur ? "cur" : passed ? "past" : null },
+          el("span", { class: "lv-n" }, passed ? "✓" : L.lv),
+          el("div", { class: "lv-t" }, el("b", null, `${L.band} · ${L.name}`), el("span", { class: "small muted" }, `${st.done}/${st.total} 익힘${passed ? " · 시험 통과" : ""}`)),
+          cur ? el("span", { class: "small mark-tag" }, "지금") : el("button", { class: "link", onclick: () => setLevel(L.lv) }, "이 단계로"));
+      })),
+      el("p", { class: "small muted", style: "margin:0" }, "시험 없이 단계를 바꿀 수도 있어요. 너무 쉬우면 올리고, 어려우면 내리세요.")),
+    el("div", { class: "card tight" },
+      el("h2", null, "복습 퀴즈"),
+      el("p", { class: "small muted", style: "margin:0" }, "단어·숙어·표현을 4지선다로 빠르게 복습해요. 틀린 건 5분 뒤에 다시 나와요."),
+      el("div", { class: "quiz-grid" }, quizzes.map(([t, label, ic]) => el("button", { class: "btn ghost", onclick: () => go(t) }, svg(ic), label)))),
+    marksCard());
+}
+
+/* 단계 시험: 듣고 뜻 고르기 4 · 한국어 보고 고르기 4 · 문장 고르기 4. 앞 단계 표현 4문제 포함 */
+const TKEY = { listen: (x) => x.m, produce: (x) => x.w, context: (x) => exOf(x)?.t };
+function buildTest(lv) {
+  const cur = shuffle(lvItems(lv)), prev = shuffle(upTo(lv - 1));
+  const items = prev.slice(0, Math.min(4, prev.length));
+  for (let k = 0; items.length < TEST_N; k++) items.push(cur[k % cur.length]);
+  const types = shuffle(["listen", "produce", "context"].flatMap((t) => [t, t, t, t]));
+  const used = new Map(); // 같은 표현이 두 번 나오면 다른 유형으로
+  return shuffle(items.map((it) => {
+    const had = used.get(it.id) || [];
+    let ti = types.findIndex((t) => !had.includes(t) && (t !== "context" || exOf(it)));
+    if (ti < 0) ti = types.findIndex((t) => t !== "context" || exOf(it));
+    const type = types.splice(Math.max(ti, 0), 1)[0];
+    used.set(it.id, [...had, type]);
+    const key = TKEY[type];
+    const choices = shuffle([it, ...distract(it, 3, key)]).map((x) => ({ id: x.id, t: key(x), r: type === "produce" ? x.r || "" : type === "context" ? exOf(x)?.r || "" : "" }));
+    return { type, it, choices };
+  }));
+}
+function startTest() {
+  R.test[P.lang] = { lv: curLv(), qs: buildTest(curLv()), i: 0, right: 0, chosen: null, wrong: [], done: false };
+  renderPanel();
+  scrollTo(0, 0);
+  const q = R.test[P.lang].qs[0];
+  if (q.type === "listen") sp.speak(q.it.w, P.lang);
+}
+function answerTest(id) {
+  const t = R.test[P.lang];
+  if (!t || t.chosen || t.done) return;
+  const q = t.qs[t.i], ok = id === q.it.id;
+  t.chosen = id; t.anim = true;
+  if (ok) t.right++;
+  else {
+    t.wrong.push(q.it.id);
+    S.marks[P.lang][markKey("expr", q.it.id)] ||= Date.now(); // 틀린 표현은 북마크해서 더 자주 나오게
+    const p = S.prog[P.lang][pkey("expr", q.it.id)];
+    if (p) p.due = Math.min(p.due, Date.now()); // 오늘의 학습 복습에 바로 나오게
+  }
+  bumpToday();
+  sp.sfx(ok ? "right" : "wrong");
+  // 효과음 다음에 정답 발음. 그새 다음 문제로 넘어갔으면 읽지 않는다
+  if (P.autoReveal && q.type !== "listen") setTimeout(() => { if (t.qs[t.i] === q) sp.speak(q.type === "context" ? exOf(q.it).t : q.it.w, P.lang); }, 320);
+  renderPanel();
+}
+function nextTest() {
+  const t = R.test[P.lang];
+  if (!t?.chosen) return;
+  t.i++; t.chosen = null;
+  if (t.i >= t.qs.length) finishTest(t);
+  renderPanel();
+  scrollTo(0, 0);
+  if (!t.done && t.qs[t.i].type === "listen") sp.speak(t.qs[t.i].it.w, P.lang);
+}
+function finishTest(t) {
+  const lang = P.lang, total = t.qs.length;
+  t.done = true;
+  t.passed = t.right >= Math.round((total * PASS_N) / TEST_N);
+  S.tests.push({ date: dkey(new Date()), ts: Date.now(), lang, lv: t.lv, right: t.right, total, pct: Math.round((t.right / total) * 100), passed: t.passed });
+  if (S.tests.length > 300) S.tests.splice(0, S.tests.length - 300);
+  if (t.passed && t.lv === curLv() && t.lv < MAX_LEVEL) {
+    t.up = t.lv + 1;
+    S.lv[lang] = t.up; S.lvSet[lang] = true;
+    R.lesson[lang] = null;
+    R.pick[lang].lv = chatDiff(t.up);
+    setTimeout(() => sp.sfx("streak"), 300);
+    toast(`🎉 ${t.up}단계로 올라갔어요!`, levelOf(lang, t.up).name, "celebrate");
+  } else sp.sfx(t.passed ? "streak" : "done");
+  persist();
+}
+function renderTest() {
+  const t = R.test[P.lang], lv = curLv(), L = levelOf(P.lang, lv), st = lvStat(lv), ja = isJa();
+  const wrap = el("div", { class: "stack" }, backLink());
+  if (!t) {
+    wrap.append(el("div", { class: "card" },
+      el("div", { class: "prompt" },
+        el("span", { class: "tag" }, `${lv}단계 시험 · ${L.band}`),
+        el("div", { class: "mid" }, L.name),
+        el("p", { class: "muted", style: "margin:0" }, `${TEST_N}문제: 듣고 뜻 고르기 4 · 한국어 보고 ${langKo()} 고르기 4 · 상황에 맞는 문장 고르기 4.${lv > 1 ? " 앞 단계 표현도 4문제 섞여요." : ""} ${PASS_N}개 이상 맞히면 ${lv < MAX_LEVEL ? `${lv + 1}단계로 올라가요` : "최고 단계 통과예요"}.`)),
+      el("div", { class: "goal" },
+        el("div", { class: "row between small" }, el("span", null, `익힌 표현 ${st.done} / ${st.total}`), el("b", null, st.pct + "%")),
+        el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` }))),
+      st.pct < 70 ? el("p", { class: "small muted", style: "margin:0" }, `아직 익힌 표현이 ${st.pct}%예요. 70%를 넘기고 보면 붙기 쉬워요. 지금 봐도 괜찮아요.`) : null,
+      el("div", { class: "row" }, el("button", { class: "btn", onclick: startTest }, "시험 시작"))));
+    return wrap;
+  }
+  if (t.done) {
+    const wrong = [...new Set(t.wrong)].map((id) => exprById(id)).filter(Boolean);
+    wrap.append(el("div", { class: "card" },
+      el("div", { class: "prompt" },
+        el("span", { class: "tag" + (t.passed ? " ok" : "") }, `${t.lv}단계 시험 · ${t.passed ? "통과" : "재도전"}`),
+        el("div", { class: "big" }, `${t.right} / ${t.qs.length}`),
+        el("p", { class: "muted", style: "margin:0" },
+          t.up ? `${t.up}단계 ‘${levelOf(P.lang, t.up).name}’로 올라갔어요. 오늘의 학습부터 새 단계 표현이 나와요.`
+            : t.passed ? "통과했어요! 회화 미션으로 실제 대화에서도 써 보세요."
+            : `${PASS_N}개 이상이면 통과예요. 틀린 표현은 북마크했고, 오늘의 학습 복습에 다시 나와요.`)),
+      wrong.length ? el("div", { class: "examples" }, el("b", null, `틀린 표현 ${wrong.length}개`),
+        wrong.map((it) => el("div", { class: "example-box" }, say(it.w, "tl ex"), ja && it.r ? el("div", { class: "rd" }, it.r) : null, el("div", { class: "small muted" }, it.m)))) : null,
+      el("div", { class: "row" },
+        el("button", { class: "btn", onclick: () => go("today") }, "오늘의 학습"),
+        el("button", { class: "btn ghost", onclick: startTest }, "다시 보기"),
+        el("button", { class: "btn ghost", onclick: () => go("progress") }, "실력 보기"))));
+    return wrap;
+  }
+  const q = t.qs[t.i], it = q.it, e = exOf(it);
+  const head = { listen: "듣고 뜻 고르기", produce: `${langKo()}로 어떻게 말할까요?`, context: "이 말을 문장으로 고르기" }[q.type];
+  const btns = q.choices.map((c, i) => {
+    let cls = "choice";
+    if (t.chosen) { cls += c.id === it.id ? " right" : c.id === t.chosen ? " wrong" : " done"; if (t.anim) cls += " anim"; }
+    const tl = q.type !== "listen";
+    return el("button", { class: cls, onclick: () => (t.chosen ? (tl ? sp.speak(c.t, P.lang) : null) : answerTest(c.id)) },
+      t.chosen ? null : el("span", { class: "k" }, i + 1),
+      el("span", { class: tl ? "tl cw" : null }, c.t),
+      tl && ja && c.r && (t.chosen || P.showReading) ? el("span", { class: "rd" }, c.r) : null);
+  });
+  t.anim = false;
+  const ok = t.chosen === it.id;
+  wrap.append(el("div", { class: "card quiz", id: "quiz-test" },
+    el("div", { class: "row between" }, el("span", { class: "quiz-title" }, `${t.lv}단계 시험`), el("span", { class: "small muted" }, `${t.i + 1} / ${t.qs.length}`)),
+    el("div", { class: "progress" }, el("span", { style: `width:${(t.i / t.qs.length) * 100}%` })),
+    el("div", { class: "prompt" },
+      el("span", { class: "tag" + (q.type === "listen" ? " alt" : "") }, head),
+      q.type === "listen"
+        ? el("button", { class: "play-big", type: "button", onclick: () => sp.speak(it.w, P.lang) }, svg(ICON.speaker), "다시 듣기")
+        : el("div", { class: "mid" }, q.type === "produce" ? it.m : e.ko)),
+    el("div", { class: "choices one" }, btns),
+    t.chosen ? el("div", { class: "result " + (ok ? "ok" : "no") },
+      el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
+      el("div", { class: "answer-line" }, say(it.w, "tl md"), ja && it.r ? el("span", { class: "rd" }, it.r) : null, el("span", null, "— ", it.m)),
+      q.type === "context" ? el("div", { class: "example-box" }, say(e.t, "tl ex"), ja && e.r ? el("div", { class: "rd" }, e.r) : null, el("div", { class: "small muted" }, e.ko)) : null) : null,
+    t.chosen ? nextBar(t.i + 1 >= t.qs.length ? "결과 보기" : "다음 →", nextTest) : null));
+  return wrap;
+}
+
+/* 실력: 단계, 시험 점수 추이, 회화 평가, 누적 기록 */
+function testChart(ts) {
+  const W = 320, H = 124, x = (i) => (ts.length === 1 ? W / 2 : 16 + (i * (W - 32)) / (ts.length - 1)), y = (p) => 8 + (100 - p) * 0.92;
+  const box = el("div", { class: "chart", role: "img", "aria-label": "최근 시험 점수: " + ts.map((t) => `${t.lv}단계 ${t.pct}%`).join(", ") });
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+<line x1="0" x2="${W}" y1="${y(75)}" y2="${y(75)}" class="pass"/><text x="${W}" y="${y(75) - 4}" text-anchor="end">통과선 75%</text>
+${ts.length > 1 ? `<polyline class="ln" points="${ts.map((t, i) => `${x(i).toFixed(1)},${y(t.pct).toFixed(1)}`).join(" ")}"/>` : ""}
+${ts.map((t, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(t.pct).toFixed(1)}" r="4.5" class="${t.passed ? "ok" : "no"}"/><text x="${x(i).toFixed(1)}" y="${H - 1}" text-anchor="middle">${t.lv}단계</text>`).join("")}
+</svg>`;
+  return box;
+}
+const stat = (label, val, unit = "") => el("div", { class: "stat" }, el("b", null, val, unit ? el("small", null, unit) : null), el("span", null, label));
+const avg = (a, k) => (a.length ? (a.reduce((n, x) => n + x[k], 0) / a.length).toFixed(1) : "—");
+function renderProgress() {
+  const lang = P.lang, lv = curLv(), L = levelOf(lang, lv), info = streakInfo(S.stats.days);
+  const all = CURRICULUM[lang].map((x) => lvStat(x.lv)), done = all.reduce((n, x) => n + x.done, 0), total = all.reduce((n, x) => n + x.total, 0);
+  const tests = S.tests.filter((t) => t.lang === lang), talks = S.talks.filter((t) => t.lang === lang), sk = S.speak[lang];
+  const days = Object.values(S.stats.days).filter((n) => n >= GOAL).length;
+  const recent = talks.slice(-5), before = talks.slice(-10, -5);
+  const trend = (k) => (before.length ? (avg(recent, k) - avg(before, k) > 0.2 ? " ↑" : avg(recent, k) - avg(before, k) < -0.2 ? " ↓" : "") : "");
+  return el("div", { class: "stack" },
+    el("div", { class: "card" },
+      el("div", { class: "row between" }, el("span", { class: "tag" }, `${langKo()} 실력`), el("span", { class: "small muted" }, `전체 ${done}/${total} 표현 익힘`)),
+      el("div", { class: "lv-now" }, el("b", null, lv), el("span", null, "단계"), el("div", null, el("div", { class: "mid" }, L.name), el("span", { class: "small muted" }, `${L.band} · ${L.goal}`))),
+      el("div", { class: "path" }, CURRICULUM[lang].map((x) =>
+        el("div", { class: "node " + (passedLv(x.lv) || x.lv < lv ? "past" : x.lv === lv ? "cur" : "") }, el("i", null, passedLv(x.lv) ? "✓" : x.lv), el("span", null, x.band)))),
+      el("div", { class: "progress" }, el("span", { style: `width:${total ? (done / total) * 100 : 0}%` }))),
+    el("div", { class: "stat-grid" },
+      stat("익힌 표현", done, `/${total}`),
+      stat("말하기 성공", sk.ok, sk.n ? ` / ${sk.n}번` : ""),
+      stat("AI 회화 평가", talks.length, "번"),
+      stat("단계 시험", tests.length, `번 · 통과 ${tests.filter((t) => t.passed).length}`),
+      stat("최고 연속", info.best, "일"),
+      stat("목표 채운 날", days, "일")),
+    el("div", { class: "card tight" },
+      el("h2", null, "단계 시험 점수"),
+      tests.length
+        ? [testChart(tests.slice(-10)),
+           el("ul", { class: "items" }, tests.slice(-6).reverse().map((t) => el("li", null,
+             el("div", { class: "w" }, `${t.lv}단계 시험`),
+             el("div", { class: "m" }, `${t.date} · ${t.right}/${t.total} (${t.pct}%)`),
+             el("div", { class: "side" }, el("span", { class: "pill " + (t.passed ? "ok" : "no") }, t.passed ? "통과" : "재도전")))))]
+        : el("p", { class: "small muted", style: "margin:0" }, "아직 본 시험이 없어요. 시험에 붙을 때마다 단계가 올라가고, 점수가 여기에 그래프로 쌓여요."),
+      el("div", { class: "row" }, el("button", { class: "btn sm", onclick: () => go("test") }, `${lv}단계 시험 보기`))),
+    el("div", { class: "card tight" },
+      el("h2", null, "AI 회화 평가"),
+      talks.length
+        ? [el("div", { class: "small muted" }, `최근 ${recent.length}번 평균 (5점 만점)`),
+           el("div", { class: "scores" }, [["유창성", "fluency"], ["정확성", "accuracy"], ["자연스러움", "naturalness"]].map(([t, k]) =>
+             el("div", { class: "score-box" }, el("b", null, avg(recent, k), trend(k)), el("span", null, t)))),
+           talks.slice(-5).reverse().map((t) => el("div", { class: "talk" },
+             el("div", { class: "row between small" }, el("b", null, t.scene), el("span", { class: "muted" }, t.date)),
+             el("div", { class: "row small", style: "gap:12px" },
+               el("span", null, "유창성 ", pips(t.fluency)), el("span", null, "정확성 ", pips(t.accuracy)), el("span", null, "자연스러움 ", pips(t.naturalness))),
+             t.summary ? el("div", { class: "small muted" }, t.summary) : null))]
+        : el("p", { class: "small muted", style: "margin:0" }, "회화 탭에서 대화한 뒤 ‘평가 받기’를 누르면 점수가 여기에 쌓여요."),
+      el("div", { class: "row" }, el("button", { class: "btn sm", onclick: startMission }, "AI 회화 미션 하기"))));
 }
 
 /* ───────── 단어 · 숙어 ───────── */
 function renderQuizTab(kind) {
-  return el("div", { class: "stack" }, quizCard(kind), genBox(kind) || "", listBox(kind));
+  if (kind === "today") return el("div", { class: "stack" }, backLink(), quizCard("today"));
+  return el("div", { class: "stack" }, backLink(), quizCard(kind), genBox(kind) || "", listBox(kind));
 }
+const backLink = () => el("button", { type: "button", class: "link back", onclick: () => go("level") }, "← 단계로");
 
 /* ───────── AI 회화 ───────── */
 const chatState = () => R.chat[P.lang];
-function startChat() {
-  const lang = P.lang, pk = R.pick[lang], sc = SCEN[lang].find((x) => x.id === pk.sc);
-  R.chat[lang] = { sc, lv: pk.lv, turns: [{ role: "user", content: "(대화를 시작해 주세요. 아직 학습자가 말하지 않았으니 feedback은 모두 빈 문자열로 두세요.)" }], msgs: [], hints: [], busy: false, ctl: null, draft: "", err: "", micErr: "", listening: false };
+// mission: 지금 단계의 장면에서 오늘 익힌 표현을 써 보는 대화
+function startChat(mission = false) {
+  const lang = P.lang;
+  let sc, lv, phrases = [];
+  if (mission) {
+    const L = levelOf(lang, curLv());
+    sc = { id: "mission", t: `${L.lv}단계 미션 · ${L.name}`, p: L.scene };
+    lv = chatDiff(L.lv);
+    phrases = missionPhrases().map((it) => ({ w: it.w, r: it.r || "", m: it.m }));
+  } else {
+    const pk = R.pick[lang];
+    sc = SCEN[lang].find((x) => x.id === pk.sc);
+    lv = pk.lv;
+  }
+  R.chat[lang] = { sc, lv, course: curLv(), mission: phrases, turns: [{ role: "user", content: "(대화를 시작해 주세요. 아직 학습자가 말하지 않았으니 feedback은 모두 빈 문자열로 두세요.)" }], msgs: [], hints: [], busy: false, ctl: null, draft: "", err: "", micErr: "", listening: false, eval: null, evalBusy: false, evalErr: "" };
   renderPanel();
   chatCall();
+}
+function startMission() {
+  const c = R.chat[P.lang];
+  go("chat");
+  if (K.anthropicKey && (!c || c.eval || c.sc.id !== "mission")) startChat(true);
+}
+// 대화를 끝내고 Claude에게 유창성·정확성·자연스러움을 1~5로 평가받는다
+async function evalChat() {
+  const lang = P.lang, c = R.chat[lang];
+  if (!c || c.evalBusy || c.busy) return;
+  R.mic?.abort(); sp.stopSpeaking();
+  c.evalBusy = true; c.evalErr = "";
+  renderPanel();
+  const transcript = c.msgs.map((m) => (m.who === "ai" ? "Partner: " : "Learner: ") + m.text).join("\n");
+  try {
+    const { system, prompt, schema } = ai.evalRequest({ langName: LANG[lang].en, isJa: lang === "ja", scenario: c.sc.p, level: LEVELS[c.lv].p, mission: c.mission.map((x) => x.w), transcript });
+    const out = await ai.askJSON({ apiKey: K.anthropicKey, model: K.model, system, messages: [{ role: "user", content: prompt }], schema, effort: "low", maxTokens: 8000 });
+    const s = (v) => (typeof v === "string" ? v.trim() : "");
+    const n = (v) => Math.max(1, Math.min(5, Math.round(Number(v)) || 1));
+    const ev = {
+      date: dkey(new Date()), ts: Date.now(), lang, lv: c.course, scene: c.sc.t,
+      fluency: n(out.fluency), accuracy: n(out.accuracy), naturalness: n(out.naturalness),
+      summary: s(out.summary), good: s(out.good),
+      fixes: (Array.isArray(out.fixes) ? out.fixes : []).map((f) => ({ said: s(f.said), better: s(f.better), reading: s(f.reading), why: s(f.why) })).filter((f) => f.better).slice(0, 3),
+      used: (Array.isArray(out.used) ? out.used : []).map(s).filter(Boolean),
+      mission: c.mission.length, turns: c.msgs.filter((m) => m.who === "me").length,
+    };
+    c.eval = ev;
+    S.talks.push(ev);
+    if (S.talks.length > 200) S.talks.splice(0, S.talks.length - 200);
+    persist();
+    sp.sfx("done");
+  } catch (e) {
+    c.evalErr = e.message;
+  } finally {
+    c.evalBusy = false;
+    if (P.lang === lang && P.tab === "chat") renderPanel();
+  }
+}
+const pips = (n) => el("span", { class: "pips", "aria-hidden": "true" }, [1, 2, 3, 4, 5].map((i) => el("i", { class: i <= n ? "on" : null })));
+function scoreBoxes(ev) {
+  return el("div", { class: "scores" }, [["유창성", ev.fluency], ["정확성", ev.accuracy], ["자연스러움", ev.naturalness]].map(([t, v]) =>
+    el("div", { class: "score-box", "aria-label": `${t} ${v}점 (5점 만점)` }, el("b", null, v), pips(v), el("span", null, t))));
+}
+function evalView(c) {
+  const ev = c.eval, ja = isJa();
+  const usedSet = new Set(ev.used);
+  return el("div", { class: "eval" },
+    el("div", { class: "row between" }, el("b", null, "대화 평가"), el("span", { class: "small muted" }, `${ev.lv}단계 · 내 말 ${ev.turns}번`)),
+    scoreBoxes(ev),
+    ev.summary ? el("div", null, ev.summary) : null,
+    ev.good ? el("div", { class: "small" }, el("b", { class: "ok-text" }, "잘한 점 "), ev.good) : null,
+    c.mission.length ? el("div", { class: "small" }, el("b", null, `미션 표현 ${c.mission.filter((x) => usedSet.has(x.w)).length} / ${c.mission.length} 사용`)) : null,
+    ev.fixes.length ? el("div", { class: "explain-list" }, el("b", { class: "small" }, "이렇게 고치면 더 좋아요"),
+      ev.fixes.map((f) => el("div", { class: "fb" },
+        f.said ? el("div", { class: "small muted" }, "내 말: ", el("span", { class: "tl" }, f.said)) : null,
+        el("div", { class: "row", style: "gap:8px" }, el("span", { class: "tl" }, f.better), spk(f.better)),
+        ja && f.reading ? el("div", { class: "rd" }, f.reading) : null,
+        f.why ? el("div", { class: "small" }, f.why) : null,
+        el("div", null, saveBtn({ t: f.better, r: f.reading, ko: "", note: f.why }))))) : null,
+    el("div", { class: "row" },
+      el("button", { class: "btn", onclick: () => { R.chat[P.lang] = null; renderPanel(); } }, "새 대화"),
+      el("button", { class: "btn ghost", onclick: () => go("progress") }, "실력 보기")));
 }
 function apiTurns(turns) {
   const t = turns.slice(-24);
@@ -610,7 +1201,7 @@ async function chatCall() {
   try {
     const res = await ai.askJSON({
       apiKey: K.anthropicKey, model: K.model,
-      system: ai.chatSystem({ langName: LANG[lang].en, isJa: lang === "ja", scenario: c.sc.p, level: LEVELS[c.lv].p }),
+      system: ai.chatSystem({ langName: LANG[lang].en, isJa: lang === "ja", scenario: c.sc.p, level: LEVELS[c.lv].p, mission: c.mission.map((x) => x.w) }),
       messages: apiTurns(c.turns), schema: ai.CHAT_SCHEMA, effort: "low", maxTokens: 8000, signal: ctl.signal,
     });
     const s = (v) => (typeof v === "string" ? v.trim() : "");
@@ -685,16 +1276,20 @@ function saveBtn(it) {
 }
 function renderChat() {
   const lang = P.lang, c = chatState(), wrap = el("div", { class: "stack" });
-  wrap.append(el("button", { type: "button", class: "link back", onclick: () => { R.mic?.abort(); P.tab = "today"; render(); } }, "← 오늘로 돌아가기"));
   if (!K.anthropicKey) { wrap.append(needKeyCard("AI 회화")); return wrap; }
   if (!c) {
-    const pk = R.pick[lang];
+    const pk = R.pick[lang], L = levelOf(lang, curLv());
     wrap.append(el("div", { class: "card" },
-      el("div", { class: "prompt" }, el("span", { class: "tag" }, "상황 고르기"), el("div", { class: "mid" }, `누구와 ${langKo()}로 이야기할까요?`)),
+      el("div", { class: "prompt" }, el("span", { class: "tag" }, `오늘의 미션 · ${L.lv}단계`), el("div", { class: "mid" }, L.name)),
+      el("p", { class: "small muted", style: "margin:0" }, "AI가 이 상황의 상대역을 맡아요. 아래 표현을 대화에 직접 써 보세요. 몇 번 주고받은 뒤 ‘평가 받기’를 누르면 점수와 고칠 점을 알려 줘요."),
+      el("div", { class: "chips" }, missionPhrases().map((it) => el("div", { class: "chip" }, say(it.w, "tl"), el("span", { class: "small muted" }, it.m)))),
+      el("div", { class: "row" }, el("button", { class: "btn", onclick: () => startChat(true) }, svg(ICON.chat), "미션 대화 시작"))));
+    wrap.append(el("div", { class: "card" },
+      el("div", { class: "prompt" }, el("span", { class: "tag" }, "자유 대화"), el("div", { class: "mid" }, `누구와 ${langKo()}로 이야기할까요?`)),
       el("div", { class: "scen" }, SCEN[lang].map((sc) => el("button", { "aria-pressed": String(pk.sc === sc.id), onclick: () => { pk.sc = sc.id; renderPanel(); } }, el("b", null, sc.t), el("span", null, sc.d)))),
       el("div", { class: "row between" },
         el("div", { class: "seg", role: "group", "aria-label": "난이도" }, LEVELS.map((L, i) => el("button", { "aria-pressed": String(pk.lv === i), onclick: () => { pk.lv = i; renderPanel(); } }, L.t))),
-        el("button", { class: "btn", onclick: startChat }, "대화 시작")),
+        el("button", { class: "btn", onclick: () => startChat() }, "대화 시작")),
       el("p", { class: "small muted", style: "margin:0" },
         sp.canListen() ? "마이크 버튼을 누르고 말하면 글자로 바뀌어 보내져요. " : "",
         `막히면 한국어로 말해도 돼요. 자연스러운 ${langKo()} 문장으로 고쳐 주고, 고친 문장은 ‘표현’ 복습 카드로 저장할 수 있어요.`)));
@@ -731,13 +1326,18 @@ function renderChat() {
       el("div", { class: "row" },
         sp.canSpeak() ? el("button", { class: "btn ghost sm" + (P.autoSpeak ? " on" : ""), "aria-pressed": String(P.autoSpeak), title: "AI 답변 자동으로 읽어 주기",
           onclick: () => { P.autoSpeak = !P.autoSpeak; persist(); if (!P.autoSpeak) sp.stopSpeaking(); renderPanel(); } }, svg(ICON.speaker), P.autoSpeak ? "읽어 주기 켬" : "읽어 주기 꺼짐") : null,
+        c.eval ? null : el("button", { class: "btn sm", disabled: c.busy || c.evalBusy || c.msgs.filter((m) => m.who === "me").length < 2 || null, title: "내가 2번 이상 말하면 평가받을 수 있어요", onclick: evalChat }, "평가 받기"),
         el("button", { class: "btn ghost sm", onclick: () => { c.ctl?.abort(); R.mic?.abort(); sp.stopSpeaking(); R.chat[lang] = null; renderPanel(); } }, "끝내기"))),
+    c.mission.length ? el("div", { class: "chips" }, el("span", { class: "small muted", style: "align-self:center" }, "미션 표현"),
+      c.mission.map((x) => el("div", { class: "chip sm" + (c.eval?.used.includes(x.w) ? " used" : "") }, say(x.w, "tl"), el("span", { class: "small muted" }, x.m)))) : null,
     msgs,
-    c.hints.length && !c.busy ? el("div", { class: "hints" }, el("span", { class: "small muted", style: "align-self:center" }, "이렇게 말해 볼까요?"),
+    c.hints.length && !c.busy && !c.eval ? el("div", { class: "hints" }, el("span", { class: "small muted", style: "align-self:center" }, "이렇게 말해 볼까요?"),
       c.hints.map((h) => el("span", { class: "hint" }, el("button", { class: "tl", onclick: () => { c.draft = h; renderPanel(); const t = $("#chat-input"); t?.focus(); } }, h), spk(h)))) : null,
     c.micErr ? el("div", { class: "status err" }, c.micErr) : null,
     c.speakErr && !c.busy ? el("div", { class: "status err" }, c.speakErr) : null,
-    el("div", { class: "composer" },
+    c.evalBusy ? el("div", { class: "status" }, "대화를 평가하는 중이에요… (10~30초)") : null,
+    c.evalErr ? el("div", { class: "status err" }, c.evalErr) : null,
+    c.eval ? evalView(c) : el("div", { class: "composer" },
       sp.canListen() ? el("button", { class: "mic-round" + (c.listening ? " on" : ""), type: "button", "aria-label": c.listening ? "듣기 멈추기" : "말해서 입력", disabled: c.busy || null, onclick: chatMic }, svg(c.listening ? ICON.stop : ICON.mic)) : null,
       ta,
       c.busy ? el("button", { class: "btn ghost", onclick: () => c.ctl?.abort() }, "멈추기") : el("button", { class: "btn", onclick: sendChat }, "보내기"))));
@@ -887,8 +1487,17 @@ async function pickImport(e) {
 $("#lang-ja").onclick = () => { R.mic?.abort(); P.lang = "ja"; persist(); render(); };
 $("#lang-en").onclick = () => { R.mic?.abort(); P.lang = "en"; persist(); render(); };
 document.addEventListener("keydown", (e) => {
-  if (!["today", "vocab", "kanji", "idiom", "expr", "marks"].includes(P.tab) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
-  const key = P.tab, s = R.sess[P.lang][key];
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  if (P.tab === "test") {
+    const t = R.test[P.lang];
+    if (!t || t.done) return;
+    if (!t.chosen && /^[1-4]$/.test(e.key)) { const c = t.qs[t.i].choices[+e.key - 1]; if (c) answerTest(c.id); }
+    else if (t.chosen && e.key === "Enter") nextTest();
+    return;
+  }
+  const key = { quiz: "today", vocab: "vocab", kanji: "kanji", idiom: "idiom", expr: "expr", marks: "marks" }[P.tab];
+  if (!key) return;
+  const s = R.sess[P.lang][key];
   if (!s?.st) return;
   if (!s.st.chosen && /^[1-4]$/.test(e.key)) { const c = s.st.choices[+e.key - 1]; if (c) answerQuiz(key, c.id); }
   else if (s.st.chosen && e.key === "Enter") nextQuiz(key);
@@ -897,5 +1506,5 @@ addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); R.installEv
 if ("speechSynthesis" in window) try { speechSynthesis.getVoices(); } catch {}
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js").catch(() => {});
 store.requestPersist();
-P.tab = "today"; // 앱을 열면 항상 '오늘'의 숙어와 퀴즈부터
+P.tab = "today"; // 앱을 열면 항상 '오늘의 학습'부터
 render();

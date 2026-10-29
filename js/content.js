@@ -1,6 +1,7 @@
 // 기본 학습 콘텐츠: 단어, 한자, 숙어, 일상 표현, 회화 상황
 import { PHRASES } from "./phrases.js";
 import { BIZ } from "./business-en.js";
+import { DAILY_EN } from "./daily-en.js";
 import { MORE } from "./examples.js";
 import { KANJI_EXTRA } from "./kanji-meaning.js";
 export const BASE = {
@@ -170,7 +171,7 @@ idiom: [
 },
 en: {
 vocab: BIZ.words,
-expr: BIZ.sentences,
+expr: [...DAILY_EN, ...BIZ.sentences],
 idiom: BIZ.phrasal,
 }};
 
