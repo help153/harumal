@@ -64,6 +64,10 @@ function speechConfig(SDK) {
 
 /* ───────── 듣기 (TTS) ───────── */
 
+// 아이폰은 무음 스위치가 켜져 있으면 Web Audio(효과음·Azure 음성)를 꺼 버린다.
+// '재생' 용도로 알려 두면 음악 앱처럼 무음 스위치와 상관없이 소리가 난다 (Safari 17 이상).
+try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}
+
 // 휴대폰은 사용자가 화면을 한 번 터치해야 소리를 낼 수 있어서, 첫 터치 때 오디오를 깨워 둔다.
 let ctx = null;
 function audioCtx() {
@@ -72,14 +76,18 @@ function audioCtx() {
 }
 // 아이폰 Safari는 터치 안에서 한 번 소리를 내 둬야, 나중에 AI 답변이 도착했을 때 읽어 줄 수 있다.
 let speechUnlocked = false;
+let unlocking = false; // 깨우기용 빈 문장이 아직 남아 있는지
 function unlockSpeech() {
   if (speechUnlocked || !("speechSynthesis" in window)) return;
   speechUnlocked = true;
   try {
     const u = new SpeechSynthesisUtterance(" ");
     u.volume = 0;
+    unlocking = true;
+    u.onend = u.onerror = () => { unlocking = false; };
+    setTimeout(() => { unlocking = false; }, 1500);
     speechSynthesis.speak(u);
-  } catch {}
+  } catch { unlocking = false; }
 }
 document.addEventListener(
   "pointerdown",
@@ -162,23 +170,30 @@ function browserSpeak(text, lang) {
   return new Promise((resolve) => {
     let settled = false;
     const done = (r) => { if (!settled) { settled = true; resolve(r); } };
-    const go = () => {
+    const go = (withVoice = true) => {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = LOC[lang];
       u.rate = (lang === "ja" ? 0.9 : 0.95) * (cfg.slow ? 0.8 : 1);
-      const v = pickVoice(lang);
+      const v = withVoice ? pickVoice(lang) : null;
       if (v) u.voice = v;
       u.onstart = () => done({ ok: true });
       u.onend = () => done({ ok: true });
-      u.onerror = (e) => done(e.error === "interrupted" || e.error === "canceled" ? { ok: true } : { ok: false, error: e.error || "error" });
+      u.onerror = (e) => {
+        if (e.error === "interrupted" || e.error === "canceled") return done({ ok: true });
+        // 고른 음성이 고장 났거나 내려받지 않은 경우가 있어서, 음성을 지정하지 않고 한 번 더 읽는다
+        if (v && !settled) return go(false);
+        done({ ok: false, error: e.error || "error" });
+      };
       currentUtterance = u;
       synth.speak(u);
       if (synth.paused) synth.resume();
-      // 시작 신호를 주지 않는 기기도 있어서, 잠시 뒤 읽고 있는지로 판단한다
-      setTimeout(() => done(synth.speaking ? { ok: true } : { ok: false, error: "no-start" }), 4000);
     };
+    // 시작 신호를 주지 않는 기기도 있어서, 잠시 뒤 읽고 있는지로 판단한다
+    setTimeout(() => done(synth.speaking ? { ok: true } : { ok: false, error: "no-start" }), 4000);
+    // 첫 터치 때 넣은 빈 문장만 남아 있으면 끊지 않고 바로 이어서 읽는다 (터치 안에서 읽어야 하는 폰이 있음)
+    if (unlocking) go();
     // Chrome은 cancel 직후 바로 speak하면 소리를 버리는 경우가 있어서 잠깐 쉬었다가 읽는다.
-    if (synth.speaking || synth.pending) {
+    else if (synth.speaking || synth.pending) {
       synth.cancel();
       setTimeout(go, 120);
     } else go();
@@ -205,7 +220,8 @@ export async function speak(text, lang) {
   if (hasAzure()) {
     try { speechSynthesis.cancel(); } catch {}
     try {
-      const buf = await azureAudio(text, lang);
+      // 연결이 막혀 답이 안 오면 오래 기다리지 않고 기기 음성으로 넘어간다
+      const buf = await Promise.race([azureAudio(text, lang), new Promise((_, no) => setTimeout(() => no(new Error("azure timeout")), 7000))]);
       const c = audioCtx();
       if (c.state === "suspended") await c.resume();
       const src = c.createBufferSource();
