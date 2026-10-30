@@ -148,7 +148,7 @@ sp.onSpeakFail((error, lang, voiceName) => {
   soundWarned = true;
   const name = lang === "ja" ? "일본어" : "영어";
   toast("소리가 나지 않았어요",
-    voiceName === "" ? `이 폰에 ${name} 음성이 없는 것 같아요. 설정에서 해결 방법을 확인해 주세요.` : "무음 모드나 미디어 볼륨을 확인해 주세요.",
+    (voiceName === "" ? `이 폰에 ${name} 음성이 없는 것 같아요. 설정에서 해결 방법을 확인해 주세요.` : "무음 모드나 미디어 볼륨을 확인해 주세요.") + ` (${error} · ${sp.voiceSummary()})`,
     "warn", { label: "해결 방법 보기", run: () => { P.tab = "settings"; render(); scrollTo(0, document.body.scrollHeight); } });
 });
 
@@ -1436,6 +1436,7 @@ function renderSettings() {
           : !r.ok ? { text: `소리를 내지 못했어요 (${r.error}). ${name ? "" : `이 기기에 ${langKo()} 음성이 없을 수 있어요. 폰 설정 → 텍스트 음성 변환(TTS)에서 ${langKo()} 음성을 내려받아 주세요. `}무음 모드도 확인해 주세요.`, err: true }
           : K.azureKey ? { text: "Azure 음성으로 읽었어요. 안 들리면 무음 모드와 볼륨을 확인해 주세요.", ok: true }
           : { text: `${name ? `${name} 음성으로` : "기기 기본 음성으로"} 읽었어요. 그래도 안 들리면 무음 모드(아이폰 옆 스위치)와 미디어 볼륨을 확인해 주세요.`, ok: true };
+        if (!K.azureKey) R.msg.voice.text += ` [${sp.voiceSummary()}]`;
         renderPanel();
       } }, `${langKo()} 읽어 주기 테스트`)),
     msgLine("voice"),

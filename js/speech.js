@@ -127,6 +127,12 @@ function pickVoice(lang) {
 export function browserVoiceName(lang) {
   return "speechSynthesis" in window ? pickVoice(lang)?.name || "" : null;
 }
+// 소리 문제를 알려 줄 때 쓰는 요약: 기기 음성 몇 개, 일본어·영어 음성 이름
+export function voiceSummary() {
+  if (!("speechSynthesis" in window)) return "읽어 주기 미지원 브라우저";
+  loadVoices();
+  return `기기 음성 ${voices.length}개 · 일본어 ${pickVoice("ja")?.name || "없음"} · 영어 ${pickVoice("en")?.name || "없음"}`;
+}
 
 const escapeXml = (t) => t.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]);
 
