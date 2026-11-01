@@ -3,7 +3,7 @@ import * as store from "./store.js";
 import * as ai from "./ai.js";
 import * as sp from "./speech.js";
 import { GOAL, streakInfo, streakCard, milestone } from "./streak.js";
-import { CURRICULUM, MAX_LEVEL, levelOf } from "./curriculum.js";
+import { CURRICULUM, MAX_LEVEL, SUBS, TOPIC_KO, levelOf, topicOf } from "./curriculum.js";
 
 /* ───────── 상태 ───────── */
 // S: 기기에 저장되는 학습 상태, K: API 키와 음성 설정, R: 화면에만 있는 임시 상태
@@ -153,7 +153,7 @@ sp.onSpeakFail((error, lang, voiceName) => {
 });
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.10.30";
+const APP_VERSION = "2026.11.01";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "level", label: "단계", icon: ICON.level },
@@ -162,7 +162,7 @@ const TABS = [
   { id: "settings", label: "설정", icon: ICON.gear },
 ];
 // 하단 탭에 없는 화면(복습 퀴즈·시험)은 '단계' 탭에 속한다
-const NAV_OF = { quiz: "level", vocab: "level", kanji: "level", idiom: "level", expr: "level", marks: "level", test: "level" };
+const NAV_OF = { quiz: "level", vocab: "level", kanji: "level", idiom: "level", expr: "level", marks: "level", test: "today" };
 function go(tab) {
   R.mic?.abort();
   if (tab === "test" && R.test[P.lang]?.done) R.test[P.lang] = null; // 끝난 시험은 새로 시작
@@ -589,32 +589,28 @@ function renderMarks() {
   return wrap;
 }
 function renderToday() {
-  const L = levelOf(P.lang, curLv()), st = lvStat(curLv());
+  const L = levelOf(P.lang, curLv());
   return el("div", { class: "stack" },
     streakCard(el, () => svg(ICON.flame), streakInfo(S.stats.days)),
     S.lvSet[P.lang] ? null : placementCard(),
+    dailyCard(),
     lessonCard(),
     el("button", { type: "button", class: "card link-card", onclick: startMission },
       el("span", { class: "row" }, svg(ICON.chat), el("b", null, "AI 회화 미션")),
-      el("span", { class: "small muted" }, `‘${L.name}’ 상황에서 오늘 표현을 직접 써 보고 평가받아요`)),
-    el("button", { type: "button", class: "card link-card", onclick: () => go("level") },
-      el("span", { class: "row" }, svg(ICON.level), el("b", null, `${L.lv}단계 진행 ${st.pct}%`)),
-      el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` })),
-      el("span", { class: "small muted" }, st.pct >= 70 ? "시험 볼 준비가 됐어요. 붙으면 다음 단계로 올라가요." : `익힌 표현 ${st.done}/${st.total}. 70%를 넘기면 단계 시험을 추천해요.`)));
+      el("span", { class: "small muted" }, `‘${L.name}’ 상황에서 오늘 표현을 직접 써 보고 평가받아요`)));
 }
 
-/* ───────── 회화 단계: 오늘의 학습 · 단계 시험 · 실력 ───────── */
-// 단계마다 정해진 핵심 표현(curriculum.js)을 익히기 → 말하기 → 듣기 순서로 연습하고, 시험에 붙으면 다음 단계로 올라간다.
+/* ───────── 회화 단계: 오늘의 시험 · 말하기 연습 · 실력 ───────── */
+// 매일 오늘의 시험(10문제)을 보고 점수로 난이도가 한 칸씩 오르내린다. 말하기 연습은 익히기 → 말하기 → 듣기.
 const LEARNED = 2; // 익힘 단계 2 이상(이틀 이상 맞힘)이면 '익힌 표현'
-const TEST_N = 12, PASS_N = 9; // 시험 12문제 중 9개(75%) 맞히면 통과
 function curLv() { return S.lv[P.lang] || 1; }
+function curSub() { return S.sub[P.lang] || 1; }
 function chatDiff(lv) { return lv <= 2 ? 0 : lv <= 4 ? 1 : 2; } // 단계 → 회화 난이도(입문·초급·중급)
 const exprById = (id, lang = P.lang) => BASE[lang].expr.find((x) => x.id === id);
 const lvItems = (lv, lang = P.lang) => levelOf(lang, lv).ids.map((id) => exprById(id, lang)).filter(Boolean);
 const upTo = (lv, lang = P.lang) => CURRICULUM[lang].filter((L) => L.lv <= lv).flatMap((L) => lvItems(L.lv, lang));
 const bOf = (it, lang = P.lang) => S.prog[lang][pkey("expr", it.id)]?.b || 0;
 const exOf = (it) => (it.ex ? { t: it.ex, r: it.exr || "", ko: it.exk || "" } : it.xs?.[0] || null);
-const passedLv = (lv, lang = P.lang) => S.tests.some((t) => t.lang === lang && t.lv === lv && t.passed);
 const lessonKey = () => `${dkey(new Date())}:${P.lang}`;
 function lvStat(lv, lang = P.lang) {
   const items = lvItems(lv, lang), done = items.filter((it) => bOf(it, lang) >= LEARNED).length;
@@ -638,7 +634,7 @@ function hintOf(it) {
 }
 function setLevel(lv) {
   const L = levelOf(P.lang, lv);
-  S.lv[P.lang] = lv; S.lvSet[P.lang] = true;
+  S.lv[P.lang] = lv; S.sub[P.lang] = 1; S.lvSet[P.lang] = true;
   R.lesson[P.lang] = null; R.test[P.lang] = null;
   R.pick[P.lang].lv = chatDiff(lv);
   persist();
@@ -648,7 +644,7 @@ function setLevel(lv) {
 function placementCard() {
   return el("div", { class: "card tight" },
     el("h2", null, `${langKo()} 시작 단계 고르기`),
-    el("p", { class: "small muted", style: "margin:0" }, "지금 실력에 맞는 단계를 골라 주세요. 잘 모르겠으면 1단계부터 하고, 쉬우면 단계 시험으로 바로 올라가면 돼요. 나중에 ‘단계’ 화면에서 바꿀 수 있어요."),
+    el("p", { class: "small muted", style: "margin:0" }, "지금 실력에 맞는 단계를 골라 주세요. 잘 모르겠으면 낮게 시작하세요. 매일 시험 점수가 좋으면 알아서 올라가요. 나중에 ‘단계’ 화면에서 바꿀 수 있어요."),
     el("div", { class: "lv-pick" }, CURRICULUM[P.lang].map((L) =>
       el("button", { type: "button", class: "choice", onclick: () => setLevel(L.lv) }, el("b", null, `${L.lv}단계 · ${L.band}`), el("span", { class: "cm" }, L.name)))));
 }
@@ -686,7 +682,7 @@ function lessonCard() {
   const at = STEPS.findIndex((x) => x[0] === s.step);
   return el("div", { class: "card quiz lesson", id: "lesson" },
     el("div", { class: "row between" },
-      el("span", { class: "quiz-title" }, `오늘의 학습 · ${s.lv}단계`),
+      el("span", { class: "quiz-title" }, `말하기 연습 · ${s.lv}단계`),
       el("div", { class: "steps" }, STEPS.map(([k, t], n) => el("span", { class: "step" + (n === at ? " on" : n < at ? " done" : "") }, `${n + 1} ${t}`)))),
     el("div", { class: "progress" }, el("span", { style: `width:${(pos / total) * 100}%` })),
     s.step === "learn" ? lessonLearn(s) : s.step === "speak" ? lessonSpeak(s) : lessonListen(s));
@@ -842,61 +838,58 @@ function lessonDone(s) {
   const [so, sn] = rec.speak || [0, 0], [lo, ln] = rec.listen || [0, 0];
   return el("div", { class: "card quiz lesson", id: "lesson" },
     el("div", { class: "prompt" },
-      el("span", { class: "tag ok" }, `오늘의 학습 완료 · ${s.lv}단계`),
+      el("span", { class: "tag ok" }, `말하기 연습 완료 · ${s.lv}단계`),
       el("div", { class: "mid" }, `말하기 ${so}/${sn} · 듣기 ${lo}/${ln}`),
       el("p", { class: "muted", style: "margin:0" }, `이 단계 표현 ${st.done}/${st.total}개 익힘 (${st.pct}%). 이제 AI와 실제로 대화하면서 써 보세요.`)),
     items.length ? el("div", { class: "examples" }, el("b", null, "오늘 익힌 표현"),
       items.map((it) => el("div", { class: "example-box" }, say(it.w, "tl ex"), ja && it.r ? el("div", { class: "rd" }, it.r) : null, el("div", { class: "small muted" }, it.m)))) : null,
     el("div", { class: "row" },
       el("button", { class: "btn", onclick: startMission }, svg(ICON.chat), "AI 회화 미션"),
-      el("button", { class: "btn ghost", onclick: () => go("test") }, "단계 시험")),
+      todayDaily() ? null : el("button", { class: "btn ghost", onclick: startTest }, "오늘의 시험")),
     el("button", { class: "link", style: "align-self:flex-start", onclick: () => { R.lesson[P.lang] = buildLesson(); renderPanel(); } },
       lvItems(s.lv).some((it) => !prog("expr", it.id)) ? "새 표현 3개 더 하기" : "한 번 더 복습하기"));
 }
 
 /* 단계 화면: 지금 단계, 이 단계 표현, 전체 단계, 복습 퀴즈 */
 function levelCard() {
-  const lv = curLv(), L = levelOf(P.lang, lv), st = lvStat(lv);
-  const last = S.tests.filter((t) => t.lang === P.lang && t.lv === lv).at(-1);
-  const ready = st.pct >= 70, top = lv === MAX_LEVEL && passedLv(lv);
+  const lv = curLv(), sub = curSub(), L = levelOf(P.lang, lv), st = lvStat(lv);
+  const last = S.tests.filter((t) => t.lang === P.lang && t.daily).at(-1);
   return el("div", { class: "card lv-card" },
-    el("div", { class: "row between" }, el("span", { class: "tag" }, `${lv}단계 · ${L.band}`), el("span", { class: "small muted" }, `${lv} / ${MAX_LEVEL}단계`)),
+    el("div", { class: "row between" }, el("span", { class: "tag" }, `${lv}단계 · ${L.band}`), notchView(lv, sub)),
     el("div", { class: "mid" }, L.name),
     el("p", { class: "muted", style: "margin:0" }, "목표: " + L.goal),
     el("div", { class: "goal" },
       el("div", { class: "row between small" }, el("span", null, `익힌 표현 ${st.done} / ${st.total}`), el("b", null, st.pct + "%")),
       el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` }))),
-    el("p", { class: "small " + (ready ? "ok-text" : "muted"), style: "margin:0" },
-      top ? "최고 단계까지 통과했어요! 회화 미션과 자유 대화로 실력을 다져 보세요."
-        : ready ? `시험 볼 준비가 됐어요. ${TEST_N}문제 중 ${PASS_N}개를 맞히면 ${lv + 1 > MAX_LEVEL ? "최고 단계 통과예요" : lv + 1 + "단계로 올라가요"}.`
-        : "표현을 70% 이상 익히면 시험을 추천해요. (서로 다른 날 2번 이상 맞힌 표현이 ‘익힘’)"),
-    last ? el("div", { class: "small muted" }, `지난 시험 ${last.date}: ${last.right}/${last.total} ${last.passed ? "통과" : "재도전"}`) : null,
+    el("p", { class: "small muted", style: "margin:0" }, RULE),
+    last ? el("div", { class: "small muted" }, `지난 시험 ${last.date}: ${last.right}/${last.total} · ${moveText(last)}`) : null,
     el("div", { class: "row" },
-      el("button", { class: "btn" + (ready ? " ghost" : ""), onclick: () => go("today") }, "오늘의 학습"),
-      el("button", { class: "btn" + (ready ? "" : " ghost"), onclick: () => go("test") }, "단계 시험 보기")));
+      todayDaily() ? el("button", { class: "btn ghost", onclick: () => go("today") }, "말하기 연습") : el("button", { class: "btn", onclick: startTest }, "오늘의 시험")));
 }
 function renderLevel() {
-  const lang = P.lang, lv = curLv(), items = lvItems(lv), ja = isJa();
+  const lang = P.lang, lv = curLv(), L = levelOf(lang, lv), items = lvItems(lv), ja = isJa();
   const quizzes = [["quiz", "섞어 풀기", ICON.today], ["vocab", "단어", ICON.vocab], ja ? ["kanji", "한자", ICON.kanji] : null, ["idiom", "숙어", ICON.idiom], ["expr", "표현", ICON.expr]].filter(Boolean);
   return el("div", { class: "stack" },
     levelCard(),
     el("details", { class: "box", open: R.open.lvList ?? true, ontoggle: (e) => { R.open.lvList = e.target.open; } },
       el("summary", null, `${lv}단계 표현 (${items.length})`),
-      el("div", { class: "boxbody" }, el("ul", { class: "items" }, items.map((it) =>
-        el("li", null,
-          el("div", { class: "w" }, say(it.w, "tl lw"), ja && it.r ? el("span", { class: "rd" }, it.r) : null),
-          el("div", { class: "m" }, it.m),
-          el("div", { class: "side" }, el("div", { class: "row", style: "gap:4px" }, dots(bOf(it)), markBtn("expr", it)))))))),
+      el("div", { class: "boxbody" }, Object.entries(L.topics).map(([tp, ids]) => [
+        el("div", { class: "topic-h" }, TOPIC_KO[tp], el("span", { class: "small muted" }, ` ${ids.length}`)),
+        el("ul", { class: "items" }, ids.map((id) => exprById(id)).filter(Boolean).map((it) =>
+          el("li", null,
+            el("div", { class: "w" }, say(it.w, "tl lw"), ja && it.r ? el("span", { class: "rd" }, it.r) : null),
+            el("div", { class: "m" }, it.m),
+            el("div", { class: "side" }, el("div", { class: "row", style: "gap:4px" }, dots(bOf(it)), markBtn("expr", it))))))]))),
     el("div", { class: "card tight" },
       el("h2", null, "전체 단계"),
       el("ol", { class: "lv-list" }, CURRICULUM[lang].map((L) => {
-        const st = lvStat(L.lv), cur = L.lv === lv, passed = passedLv(L.lv);
+        const st = lvStat(L.lv), cur = L.lv === lv, passed = L.lv < lv;
         return el("li", { class: cur ? "cur" : passed ? "past" : null },
           el("span", { class: "lv-n" }, passed ? "✓" : L.lv),
-          el("div", { class: "lv-t" }, el("b", null, `${L.band} · ${L.name}`), el("span", { class: "small muted" }, `${st.done}/${st.total} 익힘${passed ? " · 시험 통과" : ""}`)),
+          el("div", { class: "lv-t" }, el("b", null, `${L.band} · ${L.name}`), el("span", { class: "small muted" }, `${st.done}/${st.total} 익힘`)),
           cur ? el("span", { class: "small mark-tag" }, "지금") : el("button", { class: "link", onclick: () => setLevel(L.lv) }, "이 단계로"));
       })),
-      el("p", { class: "small muted", style: "margin:0" }, "시험 없이 단계를 바꿀 수도 있어요. 너무 쉬우면 올리고, 어려우면 내리세요.")),
+      el("p", { class: "small muted", style: "margin:0" }, "시험 없이 단계를 바꿀 수도 있어요. 너무 쉬우면 올리고, 어려우면 내리세요. 바꾸면 그 단계 1칸부터 시작해요.")),
     el("div", { class: "card tight" },
       el("h2", null, "복습 퀴즈"),
       el("p", { class: "small muted", style: "margin:0" }, "단어·숙어·표현을 4지선다로 빠르게 복습해요. 틀린 건 5분 뒤에 다시 나와요."),
@@ -904,28 +897,59 @@ function renderLevel() {
     marksCard());
 }
 
-/* 단계 시험: 듣고 뜻 고르기 4 · 한국어 보고 고르기 4 · 문장 고르기 4. 앞 단계 표현 4문제 포함 */
-const TKEY = { listen: (x) => x.m, produce: (x) => x.w, context: (x) => exOf(x)?.t };
-function buildTest(lv) {
-  const cur = shuffle(lvItems(lv)), prev = shuffle(upTo(lv - 1));
-  const items = prev.slice(0, Math.min(4, prev.length));
-  for (let k = 0; items.length < TEST_N; k++) items.push(cur[k % cur.length]);
-  const types = shuffle(["listen", "produce", "context"].flatMap((t) => [t, t, t, t]));
-  const used = new Map(); // 같은 표현이 두 번 나오면 다른 유형으로
-  return shuffle(items.map((it) => {
-    const had = used.get(it.id) || [];
-    let ti = types.findIndex((t) => !had.includes(t) && (t !== "context" || exOf(it)));
-    if (ti < 0) ti = types.findIndex((t) => t !== "context" || exOf(it));
-    const type = types.splice(Math.max(ti, 0), 1)[0];
-    used.set(it.id, [...had, type]);
+/* 오늘의 시험: 매일 10문제. 점수에 따라 난이도가 한 칸씩 오르내린다 (단계마다 3칸) */
+const DAILY_N = 10;
+const UP_PCT = 90, KEEP_PCT = 80, DOWN_PCT = 40; // 9개 이상이면 바로 한 칸 ↑, 8개를 이틀 연속이면 ↑, 4개 이하면 ↓
+const RULE = `9개 이상 맞히거나 8개를 이틀 연속 맞히면 난이도가 한 칸 올라가고, 4개 이하면 한 칸 내려가요. 단계마다 ${SUBS}칸이고, 다 채우면 다음 단계예요.`;
+// 칸이 오를수록 다음 단계 '도전' 문제와 어려운 유형(듣기 · 문장 고르기)이 늘어난다
+const MIX = {
+  1: { cur: 6, low: 4, next: 0, types: { meaning: 4, produce: 3, listen: 3 } },
+  2: { cur: 6, low: 2, next: 2, types: { meaning: 2, produce: 3, listen: 3, context: 2 } },
+  3: { cur: 5, low: 1, next: 4, types: { produce: 3, listen: 4, context: 3 } },
+};
+const TKEY = { meaning: (x) => x.m, listen: (x) => x.m, produce: (x) => x.w, context: (x) => exOf(x)?.t };
+const isLife = (it) => topicOf(P.lang, it.id) !== "사업";
+const todayDaily = (lang = P.lang) => S.tests.find((t) => t.lang === lang && t.daily && t.date === dkey(new Date()));
+const notchView = (lv, sub) => el("span", { class: "notch", title: `난이도 ${sub}/${SUBS}칸` },
+  el("b", null, `${lv}단계`), el("span", { class: "pips" }, Array.from({ length: SUBS }, (_, i) => el("i", { class: i < sub ? "on" : null }))));
+function moveText(t) {
+  if (t.move > 0) return "난이도가 한 칸 올라갔어요.";
+  if (t.move < 0) return "난이도를 한 칸 낮췄어요. 탄탄히 다지고 다시 올라가요.";
+  if (!t.daily) return "연습 시험이라 난이도는 그대로예요.";
+  return t.pct >= KEEP_PCT ? "내일도 8개 이상 맞히면 한 칸 올라가요." : "9개 이상 맞히면 한 칸 올라가요.";
+}
+// 덜 익힌 것·북마크한 것을 먼저. 생활(일상 · 가족 · 집 · 가벼운 대화) 6 : 사업 4, 생활은 주제를 돌아가며 하나씩
+function pickMix(src, n) {
+  if (n <= 0 || !src.length) return [];
+  const pri = (it) => (isMarked("expr", it.id) ? 0 : 10) + Math.min(bOf(it), 6);
+  const sorted = shuffle(src).sort((a, b) => pri(a) - pri(b));
+  const life = sorted.filter(isLife), biz = sorted.filter((x) => !isLife(x));
+  const lifeN = Math.min(life.length, Math.max(n - biz.length, Math.round(n * 0.6)));
+  const groups = {};
+  for (const it of life) (groups[topicOf(P.lang, it.id)] ||= []).push(it);
+  const order = shuffle(Object.keys(groups)), out = [];
+  for (let k = 0; out.length < lifeN; k = (k + 1) % order.length) { const g = groups[order[k]]; if (g.length) out.push(g.shift()); }
+  return [...out, ...biz, ...Object.values(groups).flat()].slice(0, n);
+}
+function buildDaily(lv, sub) {
+  const m = { ...MIX[sub] }, cur = lvItems(lv), low = upTo(lv - 1), next = lv < MAX_LEVEL ? lvItems(lv + 1) : [];
+  if (!next.length) { m.cur += m.next; m.next = 0; }
+  if (!low.length) { m.cur += m.low; m.low = 0; }
+  const items = [...pickMix(cur, m.cur), ...pickMix(low, m.low), ...pickMix(next, m.next)];
+  if (items.length < DAILY_N) items.push(...pickMix(upTo(Math.min(lv + 1, MAX_LEVEL)).filter((x) => !items.includes(x)), DAILY_N - items.length));
+  const hard = new Set(next.map((x) => x.id));
+  const types = shuffle(Object.entries(m.types).flatMap(([t, n]) => Array(n).fill(t)));
+  return shuffle(items).map((it) => {
+    const ti = types.findIndex((t) => t !== "context" || exOf(it));
+    const type = ti < 0 ? "produce" : types.splice(ti, 1)[0];
     const key = TKEY[type];
     const choices = shuffle([it, ...distract(it, 3, key)]).map((x) => ({ id: x.id, t: key(x), r: type === "produce" ? x.r || "" : type === "context" ? exOf(x)?.r || "" : "" }));
-    return { type, it, choices };
-  }));
+    return { type, it, choices, hard: hard.has(it.id) };
+  });
 }
 function startTest() {
-  R.test[P.lang] = { lv: curLv(), qs: buildTest(curLv()), i: 0, right: 0, chosen: null, wrong: [], done: false };
-  renderPanel();
+  R.test[P.lang] = { lv: curLv(), sub: curSub(), daily: !todayDaily(), qs: buildDaily(curLv(), curSub()), i: 0, right: 0, chosen: null, wrong: [], done: false };
+  go("test");
   scrollTo(0, 0);
   const q = R.test[P.lang].qs[0];
   if (q.type === "listen") sp.speak(q.it.w, P.lang);
@@ -940,7 +964,7 @@ function answerTest(id) {
     t.wrong.push(q.it.id);
     S.marks[P.lang][markKey("expr", q.it.id)] ||= Date.now(); // 틀린 표현은 북마크해서 더 자주 나오게
     const p = S.prog[P.lang][pkey("expr", q.it.id)];
-    if (p) p.due = Math.min(p.due, Date.now()); // 오늘의 학습 복습에 바로 나오게
+    if (p) p.due = Math.min(p.due, Date.now()); // 말하기 연습 복습에 바로 나오게
   }
   bumpToday();
   sp.sfx(ok ? "right" : "wrong");
@@ -957,62 +981,84 @@ function nextTest() {
   scrollTo(0, 0);
   if (!t.done && t.qs[t.i].type === "listen") sp.speak(t.qs[t.i].it.w, P.lang);
 }
+// 난이도를 d칸 옮긴다 (1단계 1칸 ~ 6단계 3칸)
+function shiftNotch(lang, d) {
+  const pos = Math.max(0, Math.min(MAX_LEVEL * SUBS - 1, (S.lv[lang] - 1) * SUBS + (S.sub[lang] || 1) - 1 + d));
+  S.lv[lang] = Math.floor(pos / SUBS) + 1; S.sub[lang] = (pos % SUBS) + 1; S.lvSet[lang] = true;
+  R.lesson[lang] = null;
+  R.pick[lang].lv = chatDiff(S.lv[lang]);
+}
 function finishTest(t) {
-  const lang = P.lang, total = t.qs.length;
-  t.done = true;
-  t.passed = t.right >= Math.round((total * PASS_N) / TEST_N);
-  S.tests.push({ date: dkey(new Date()), ts: Date.now(), lang, lv: t.lv, right: t.right, total, pct: Math.round((t.right / total) * 100), passed: t.passed });
-  if (S.tests.length > 300) S.tests.splice(0, S.tests.length - 300);
-  if (t.passed && t.lv === curLv() && t.lv < MAX_LEVEL) {
-    t.up = t.lv + 1;
-    S.lv[lang] = t.up; S.lvSet[lang] = true;
-    R.lesson[lang] = null;
-    R.pick[lang].lv = chatDiff(t.up);
+  const lang = P.lang, total = t.qs.length, pct = Math.round((t.right / total) * 100), today = dkey(new Date());
+  t.done = true; t.pct = pct; t.move = 0;
+  if (t.daily) {
+    const prev = S.tests.filter((x) => x.lang === lang && x.daily).at(-1);
+    const twoDays = prev && prev.date === dkey(new Date(Date.now() - DAY)) && prev.pct >= KEEP_PCT && !(prev.move > 0);
+    t.move = pct >= UP_PCT || (pct >= KEEP_PCT && twoDays) ? 1 : pct <= DOWN_PCT ? -1 : 0;
+  }
+  const before = { lv: S.lv[lang], sub: S.sub[lang] || 1 };
+  if (t.move) shiftNotch(lang, t.move);
+  if (S.lv[lang] === before.lv && (S.sub[lang] || 1) === before.sub) t.move = 0; // 맨 위·맨 아래라 그대로
+  t.to = { lv: S.lv[lang], sub: S.sub[lang] };
+  S.tests.push({ date: today, ts: Date.now(), lang, lv: t.lv, sub: t.sub, right: t.right, total, pct, daily: t.daily, move: t.move, passed: pct >= KEEP_PCT });
+  if (S.tests.length > 400) S.tests.splice(0, S.tests.length - 400);
+  if (t.move > 0 && t.to.lv > before.lv) {
     setTimeout(() => sp.sfx("streak"), 300);
-    toast(`🎉 ${t.up}단계로 올라갔어요!`, levelOf(lang, t.up).name, "celebrate");
-  } else sp.sfx(t.passed ? "streak" : "done");
+    toast(`🎉 ${t.to.lv}단계로 올라갔어요!`, levelOf(lang, t.to.lv).name, "celebrate");
+  } else if (t.move > 0) {
+    setTimeout(() => sp.sfx("streak"), 300);
+    toast("난이도가 한 칸 올라갔어요", `${t.to.lv}단계 ${t.to.sub}/${SUBS}칸`, "celebrate");
+  } else if (t.move < 0) {
+    sp.sfx("done");
+    toast("난이도를 한 칸 낮췄어요", `${t.to.lv}단계 ${t.to.sub}/${SUBS}칸 · 탄탄히 다지고 다시 올라가요`);
+  } else sp.sfx("done");
   persist();
 }
+function scoreBars(ts) {
+  return el("div", { class: "mini-bars", role: "img", "aria-label": "최근 시험 점수: " + ts.map((t) => `${t.right}/${t.total}`).join(", ") },
+    ts.map((t) => el("span", { title: `${t.date} ${t.right}/${t.total}` },
+      el("i", { class: t.move > 0 ? "up" : t.move < 0 ? "down" : null, style: `height:${Math.max(t.pct, 6)}%` }), el("small", null, t.right))));
+}
+function dailyCard() {
+  const lv = curLv(), sub = curSub(), L = levelOf(P.lang, lv), done = todayDaily();
+  const hist = S.tests.filter((t) => t.lang === P.lang && t.daily).slice(-7);
+  return el("div", { class: "card daily" },
+    el("div", { class: "row between" }, el("span", { class: "tag" + (done ? " ok" : "") }, done ? "오늘의 시험 완료" : "오늘의 시험"), notchView(lv, sub)),
+    el("div", { class: "mid" }, L.name),
+    done
+      ? el("p", { class: "muted", style: "margin:0" }, el("b", null, `오늘 ${done.right}/${done.total}개. `), moveText(done), " 내일 또 봐요.")
+      : el("p", { class: "muted", style: "margin:0" }, `${DAILY_N}문제 · 일상 · 가족 · 집 · 가벼운 대화 · 사업에서 골고루 나와요. ${RULE}`),
+    hist.length ? scoreBars(hist) : null,
+    el("div", { class: "row" }, done
+      ? el("button", { class: "btn ghost", onclick: startTest }, "연습 시험 한 번 더")
+      : el("button", { class: "btn", onclick: startTest }, "시험 시작")));
+}
 function renderTest() {
-  const t = R.test[P.lang], lv = curLv(), L = levelOf(P.lang, lv), st = lvStat(lv), ja = isJa();
-  const wrap = el("div", { class: "stack" }, backLink());
-  if (!t) {
-    wrap.append(el("div", { class: "card" },
-      el("div", { class: "prompt" },
-        el("span", { class: "tag" }, `${lv}단계 시험 · ${L.band}`),
-        el("div", { class: "mid" }, L.name),
-        el("p", { class: "muted", style: "margin:0" }, `${TEST_N}문제: 듣고 뜻 고르기 4 · 한국어 보고 ${langKo()} 고르기 4 · 상황에 맞는 문장 고르기 4.${lv > 1 ? " 앞 단계 표현도 4문제 섞여요." : ""} ${PASS_N}개 이상 맞히면 ${lv < MAX_LEVEL ? `${lv + 1}단계로 올라가요` : "최고 단계 통과예요"}.`)),
-      el("div", { class: "goal" },
-        el("div", { class: "row between small" }, el("span", null, `익힌 표현 ${st.done} / ${st.total}`), el("b", null, st.pct + "%")),
-        el("div", { class: "progress" }, el("span", { style: `width:${st.pct}%` }))),
-      st.pct < 70 ? el("p", { class: "small muted", style: "margin:0" }, `아직 익힌 표현이 ${st.pct}%예요. 70%를 넘기고 보면 붙기 쉬워요. 지금 봐도 괜찮아요.`) : null,
-      el("div", { class: "row" }, el("button", { class: "btn", onclick: startTest }, "시험 시작"))));
-    return wrap;
-  }
+  const t = R.test[P.lang], ja = isJa();
+  const wrap = el("div", { class: "stack" }, el("button", { type: "button", class: "link back", onclick: () => go("today") }, "← 오늘로"));
+  if (!t) { wrap.append(dailyCard()); return wrap; }
   if (t.done) {
     const wrong = [...new Set(t.wrong)].map((id) => exprById(id)).filter(Boolean);
     wrap.append(el("div", { class: "card" },
       el("div", { class: "prompt" },
-        el("span", { class: "tag" + (t.passed ? " ok" : "") }, `${t.lv}단계 시험 · ${t.passed ? "통과" : "재도전"}`),
+        el("span", { class: "tag" + (t.move > 0 ? " ok" : "") }, t.daily ? "오늘의 시험 결과" : "연습 시험 결과"),
         el("div", { class: "big" }, `${t.right} / ${t.qs.length}`),
-        el("p", { class: "muted", style: "margin:0" },
-          t.up ? `${t.up}단계 ‘${levelOf(P.lang, t.up).name}’로 올라갔어요. 오늘의 학습부터 새 단계 표현이 나와요.`
-            : t.passed ? "통과했어요! 회화 미션으로 실제 대화에서도 써 보세요."
-            : `${PASS_N}개 이상이면 통과예요. 틀린 표현은 북마크했고, 오늘의 학습 복습에 다시 나와요.`)),
-      wrong.length ? el("div", { class: "examples" }, el("b", null, `틀린 표현 ${wrong.length}개`),
+        el("p", { class: "muted", style: "margin:0" }, moveText(t)),
+        el("div", { class: "row" }, el("span", { class: "small muted" }, "지금 난이도"), notchView(t.to.lv, t.to.sub))),
+      wrong.length ? el("div", { class: "examples" }, el("b", null, `틀린 표현 ${wrong.length}개 (북마크했어요)`),
         wrong.map((it) => el("div", { class: "example-box" }, say(it.w, "tl ex"), ja && it.r ? el("div", { class: "rd" }, it.r) : null, el("div", { class: "small muted" }, it.m)))) : null,
       el("div", { class: "row" },
-        el("button", { class: "btn", onclick: () => go("today") }, "오늘의 학습"),
-        el("button", { class: "btn ghost", onclick: startTest }, "다시 보기"),
+        el("button", { class: "btn", onclick: () => go("today") }, "말하기 연습"),
+        el("button", { class: "btn ghost", onclick: startMission }, "AI 회화 미션"),
         el("button", { class: "btn ghost", onclick: () => go("progress") }, "실력 보기"))));
     return wrap;
   }
   const q = t.qs[t.i], it = q.it, e = exOf(it);
-  const head = { listen: "듣고 뜻 고르기", produce: `${langKo()}로 어떻게 말할까요?`, context: "이 말을 문장으로 고르기" }[q.type];
+  const head = { meaning: "뜻 고르기", listen: "듣고 뜻 고르기", produce: `${langKo()}로 어떻게 말할까요?`, context: "이 말을 문장으로 고르기" }[q.type];
+  const tl = q.type === "produce" || q.type === "context"; // 보기가 외국어인 문제
   const btns = q.choices.map((c, i) => {
     let cls = "choice";
     if (t.chosen) { cls += c.id === it.id ? " right" : c.id === t.chosen ? " wrong" : " done"; if (t.anim) cls += " anim"; }
-    const tl = q.type !== "listen";
     return el("button", { class: cls, onclick: () => (t.chosen ? (tl ? sp.speak(c.t, P.lang) : null) : answerTest(c.id)) },
       t.chosen ? null : el("span", { class: "k" }, i + 1),
       el("span", { class: tl ? "tl cw" : null }, c.t),
@@ -1021,13 +1067,16 @@ function renderTest() {
   t.anim = false;
   const ok = t.chosen === it.id;
   wrap.append(el("div", { class: "card quiz", id: "quiz-test" },
-    el("div", { class: "row between" }, el("span", { class: "quiz-title" }, `${t.lv}단계 시험`), el("span", { class: "small muted" }, `${t.i + 1} / ${t.qs.length}`)),
+    el("div", { class: "row between" }, el("span", { class: "quiz-title" }, t.daily ? "오늘의 시험" : "연습 시험"), el("span", { class: "small muted" }, `${t.i + 1} / ${t.qs.length}`)),
     el("div", { class: "progress" }, el("span", { style: `width:${(t.i / t.qs.length) * 100}%` })),
     el("div", { class: "prompt" },
-      el("span", { class: "tag" + (q.type === "listen" ? " alt" : "") }, head),
+      el("div", { class: "row" }, el("span", { class: "tag" + (q.type === "listen" ? " alt" : "") }, head),
+        el("span", { class: "small muted" }, TOPIC_KO[topicOf(P.lang, it.id)] + (q.hard ? " · 도전" : ""))),
       q.type === "listen"
         ? el("button", { class: "play-big", type: "button", onclick: () => sp.speak(it.w, P.lang) }, svg(ICON.speaker), "다시 듣기")
-        : el("div", { class: "mid" }, q.type === "produce" ? it.m : e.ko)),
+        : q.type === "meaning"
+          ? el("div", null, say(it.w, "tl big-say"), ja && it.r && (t.chosen || P.showReading) ? el("div", { class: "rd" }, it.r) : null, ja && P.kanjiHint && !t.chosen ? kanjiHints(it.w) : null)
+          : el("div", { class: "mid" }, q.type === "produce" ? it.m : e.ko)),
     el("div", { class: "choices one" }, btns),
     t.chosen ? el("div", { class: "result " + (ok ? "ok" : "no") },
       el("div", { class: "head" }, ok ? "정답이에요" : "아쉬워요"),
@@ -1040,11 +1089,11 @@ function renderTest() {
 /* 실력: 단계, 시험 점수 추이, 회화 평가, 누적 기록 */
 function testChart(ts) {
   const W = 320, H = 124, x = (i) => (ts.length === 1 ? W / 2 : 16 + (i * (W - 32)) / (ts.length - 1)), y = (p) => 8 + (100 - p) * 0.92;
-  const box = el("div", { class: "chart", role: "img", "aria-label": "최근 시험 점수: " + ts.map((t) => `${t.lv}단계 ${t.pct}%`).join(", ") });
+  const box = el("div", { class: "chart", role: "img", "aria-label": "최근 오늘의 시험 점수: " + ts.map((t) => `${t.lv}단계 ${t.right}/${t.total}`).join(", ") });
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-<line x1="0" x2="${W}" y1="${y(75)}" y2="${y(75)}" class="pass"/><text x="${W}" y="${y(75) - 4}" text-anchor="end">통과선 75%</text>
+<line x1="0" x2="${W}" y1="${y(UP_PCT)}" y2="${y(UP_PCT)}" class="pass"/><text x="${W}" y="${y(UP_PCT) - 4}" text-anchor="end">한 칸 ↑ 9개</text>
 ${ts.length > 1 ? `<polyline class="ln" points="${ts.map((t, i) => `${x(i).toFixed(1)},${y(t.pct).toFixed(1)}`).join(" ")}"/>` : ""}
-${ts.map((t, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(t.pct).toFixed(1)}" r="4.5" class="${t.passed ? "ok" : "no"}"/><text x="${x(i).toFixed(1)}" y="${H - 1}" text-anchor="middle">${t.lv}단계</text>`).join("")}
+${ts.map((t, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(t.pct).toFixed(1)}" r="4.5" class="${t.move > 0 ? "ok" : t.move < 0 ? "no" : ""}"/><text x="${x(i).toFixed(1)}" y="${H - 1}" text-anchor="middle">${t.lv}-${t.sub || 1}</text>`).join("")}
 </svg>`;
   return box;
 }
@@ -1053,34 +1102,34 @@ const avg = (a, k) => (a.length ? (a.reduce((n, x) => n + x[k], 0) / a.length).t
 function renderProgress() {
   const lang = P.lang, lv = curLv(), L = levelOf(lang, lv), info = streakInfo(S.stats.days);
   const all = CURRICULUM[lang].map((x) => lvStat(x.lv)), done = all.reduce((n, x) => n + x.done, 0), total = all.reduce((n, x) => n + x.total, 0);
-  const tests = S.tests.filter((t) => t.lang === lang), talks = S.talks.filter((t) => t.lang === lang), sk = S.speak[lang];
+  const tests = S.tests.filter((t) => t.lang === lang && t.daily), talks = S.talks.filter((t) => t.lang === lang), sk = S.speak[lang];
   const days = Object.values(S.stats.days).filter((n) => n >= GOAL).length;
   const recent = talks.slice(-5), before = talks.slice(-10, -5);
   const trend = (k) => (before.length ? (avg(recent, k) - avg(before, k) > 0.2 ? " ↑" : avg(recent, k) - avg(before, k) < -0.2 ? " ↓" : "") : "");
   return el("div", { class: "stack" },
     el("div", { class: "card" },
       el("div", { class: "row between" }, el("span", { class: "tag" }, `${langKo()} 실력`), el("span", { class: "small muted" }, `전체 ${done}/${total} 표현 익힘`)),
-      el("div", { class: "lv-now" }, el("b", null, lv), el("span", null, "단계"), el("div", null, el("div", { class: "mid" }, L.name), el("span", { class: "small muted" }, `${L.band} · ${L.goal}`))),
+      el("div", { class: "lv-now" }, el("b", null, lv), el("span", null, "단계"), el("div", null, el("div", { class: "mid" }, L.name), el("span", { class: "small muted" }, `${L.band} · 난이도 ${curSub()}/${SUBS}칸`))),
       el("div", { class: "path" }, CURRICULUM[lang].map((x) =>
-        el("div", { class: "node " + (passedLv(x.lv) || x.lv < lv ? "past" : x.lv === lv ? "cur" : "") }, el("i", null, passedLv(x.lv) ? "✓" : x.lv), el("span", null, x.band)))),
+        el("div", { class: "node " + (x.lv < lv ? "past" : x.lv === lv ? "cur" : "") }, el("i", null, x.lv < lv ? "✓" : x.lv), el("span", null, x.band)))),
       el("div", { class: "progress" }, el("span", { style: `width:${total ? (done / total) * 100 : 0}%` }))),
     el("div", { class: "stat-grid" },
       stat("익힌 표현", done, `/${total}`),
       stat("말하기 성공", sk.ok, sk.n ? ` / ${sk.n}번` : ""),
       stat("AI 회화 평가", talks.length, "번"),
-      stat("단계 시험", tests.length, `번 · 통과 ${tests.filter((t) => t.passed).length}`),
+      stat("오늘의 시험", tests.length, `번 · 칸 ↑ ${tests.filter((t) => t.move > 0).length}`),
       stat("최고 연속", info.best, "일"),
       stat("목표 채운 날", days, "일")),
     el("div", { class: "card tight" },
-      el("h2", null, "단계 시험 점수"),
+      el("h2", null, "오늘의 시험 점수"),
       tests.length
-        ? [testChart(tests.slice(-10)),
-           el("ul", { class: "items" }, tests.slice(-6).reverse().map((t) => el("li", null,
-             el("div", { class: "w" }, `${t.lv}단계 시험`),
-             el("div", { class: "m" }, `${t.date} · ${t.right}/${t.total} (${t.pct}%)`),
-             el("div", { class: "side" }, el("span", { class: "pill " + (t.passed ? "ok" : "no") }, t.passed ? "통과" : "재도전")))))]
-        : el("p", { class: "small muted", style: "margin:0" }, "아직 본 시험이 없어요. 시험에 붙을 때마다 단계가 올라가고, 점수가 여기에 그래프로 쌓여요."),
-      el("div", { class: "row" }, el("button", { class: "btn sm", onclick: () => go("test") }, `${lv}단계 시험 보기`))),
+        ? [testChart(tests.slice(-14)),
+           el("ul", { class: "items" }, tests.slice(-7).reverse().map((t) => el("li", null,
+             el("div", { class: "w" }, `${t.lv}단계 ${t.sub || 1}칸`),
+             el("div", { class: "m" }, `${t.date} · ${t.right}/${t.total}`),
+             el("div", { class: "side" }, el("span", { class: "pill " + (t.move > 0 ? "ok" : t.move < 0 ? "no" : "mid") }, t.move > 0 ? "한 칸 ↑" : t.move < 0 ? "한 칸 ↓" : "유지")))))]
+        : el("p", { class: "small muted", style: "margin:0" }, "아직 본 시험이 없어요. 매일 시험 점수가 여기에 그래프로 쌓이고, 잘 보면 난이도가 올라가요."),
+      todayDaily() ? null : el("div", { class: "row" }, el("button", { class: "btn sm", onclick: startTest }, "오늘의 시험 보기"))),
     el("div", { class: "card tight" },
       el("h2", null, "AI 회화 평가"),
       talks.length

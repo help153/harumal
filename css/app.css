@@ -378,3 +378,21 @@ label.btn { cursor: pointer; }
 .chip.sm .say .ico svg { width: 14px; height: 14px; }
 .chip.used { border-color: var(--good); background: var(--good-soft); }
 .eval { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* 오늘의 시험 · 난이도 칸 */
+.notch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.notch b { color: var(--accent); }
+.notch .pips i { width: 14px; height: 8px; border-radius: 99px; }
+.mini-bars { display: flex; align-items: flex-end; gap: 6px; height: 64px; padding-top: 4px; }
+.mini-bars > span { flex: 1; max-width: 34px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; }
+.mini-bars i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.mini-bars i.up { background: var(--good); box-shadow: none; }
+.mini-bars i.down { background: var(--bad-soft); box-shadow: inset 0 0 0 1px var(--bad); }
+.mini-bars small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.say.big-say { font-size: 22px; font-weight: 700; }
+.topic-h { font-size: 13px; font-weight: 700; color: var(--accent); margin: 10px 0 2px; }
+.topic-h:first-child { margin-top: 0; }
+.chart circle { fill: var(--accent); }
+.chart circle.ok { fill: var(--good); }
+.chart circle.no { fill: var(--bad); }
+.pill.mid { color: var(--muted); background: var(--sunk); }

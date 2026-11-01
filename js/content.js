@@ -1,5 +1,6 @@
 // 기본 학습 콘텐츠: 단어, 한자, 숙어, 일상 표현, 회화 상황
 import { PHRASES } from "./phrases.js";
+import { LIFE } from "./life.js";
 import { BIZ } from "./business-en.js";
 import { DAILY_EN } from "./daily-en.js";
 import { MORE } from "./examples.js";
@@ -48,7 +49,7 @@ vocab: [
 ["いつ","いつ","언제","誕生日はいつですか。","たんじょうびはいつですか。","생일이 언제예요?"],
 ["一緒に","いっしょに","같이","一緒に行きましょう。","いっしょにいきましょう。","같이 가요."],
 ].map(([w,r,m,ex,exr,exk],i)=>({id:"jb"+i,w,r,m,ex,exr,exk})),
-expr: PHRASES.ja,
+expr: [...PHRASES.ja, ...LIFE.ja],
 kanji: [
 ["日","ひ · ニチ","날 일","毎日","まいにち","매일"],
 ["月","つき · ゲツ","달 월","月曜日","げつようび","월요일"],
@@ -171,7 +172,7 @@ idiom: [
 },
 en: {
 vocab: BIZ.words,
-expr: [...DAILY_EN, ...BIZ.sentences],
+expr: [...DAILY_EN, ...LIFE.en, ...BIZ.sentences],
 idiom: BIZ.phrasal,
 }};
 

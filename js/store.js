@@ -12,6 +12,7 @@ export function emptyState() {
     explain: { ja: {}, en: {} }, // 퀴즈 '자세히 설명'으로 받은 설명 (항목 id별)
     marks: { ja: {}, en: {} }, // 북마크: "종류:id" → 표시한 시각
     lv: { ja: 1, en: 1 }, // 회화 단계 (1~6)
+    sub: { ja: 1, en: 1 }, // 단계 안 난이도 칸 (1~3). 오늘의 시험 점수로 오르내린다
     lvSet: { ja: false, en: false }, // 시작 단계를 골랐는지
     tests: [], // 단계 시험 기록 {date, lang, lv, right, total, pct, passed}
     talks: [], // AI 대화 평가 기록 {date, lang, lv, scene, fluency, accuracy, naturalness, summary}
@@ -34,7 +35,7 @@ export function normalize(raw) {
       if (Array.isArray(list)) s.custom[lang][kind] = list;
     }
   }
-  for (const k of ["lv", "lvSet", "speak"]) if (raw[k] && typeof raw[k] === "object") for (const l of ["ja", "en"]) if (raw[k][l] != null) s[k][l] = raw[k][l];
+  for (const k of ["lv", "sub", "lvSet", "speak"]) if (raw[k] && typeof raw[k] === "object") for (const l of ["ja", "en"]) if (raw[k][l] != null) s[k][l] = raw[k][l];
   if (Array.isArray(raw.tests)) s.tests = raw.tests;
   if (Array.isArray(raw.talks)) s.talks = raw.talks;
   if (raw.lessons && typeof raw.lessons === "object") s.lessons = raw.lessons;
