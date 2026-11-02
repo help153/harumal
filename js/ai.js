@@ -6,11 +6,14 @@ const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.129.0/+esm";
 export const MODELS = [
   { id: "claude-opus-5-5", name: "Claude Opus 5.5", note: "교정이 가장 정확해요 (기본값)" },
   { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", note: "빠르고 정확도도 좋아요" },
-  { id: "claude-haiku-5-5", name: "Claude Haiku 5.5", note: "가장 빠르고 저렴해요" },
+  { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", note: "가장 빠르고 저렴해요" },
 ];
 
 // 안전 분류기가 거절하면 서버가 다른 모델로 다시 실행해 주는 기능 (Opus·Sonnet만 지원)
 const SERVER_FALLBACK = new Set(["claude-opus-5-5", "claude-sonnet-5-5"]);
+
+// effort(생각 깊이)를 받지 않는 모델. 같이 보내면 400 오류가 난다.
+const NO_EFFORT = new Set(["claude-haiku-4-5"]);
 
 export class AIError extends Error {
   constructor(code, message) {
@@ -62,12 +65,16 @@ function mapError(e, Anthropic) {
  */
 export async function askJSON({ apiKey, model, system, messages, schema, effort = "low", maxTokens = 8000, signal }) {
   const { client, Anthropic } = await getClient(apiKey);
+  // 예전에 저장해 둔 설정에 지금은 없는 모델이 들어 있으면 기본 모델로 돌린다
+  if (!MODELS.some((m) => m.id === model)) model = MODELS[0].id;
   const params = {
     model,
     max_tokens: maxTokens,
     system,
     messages,
-    output_config: { effort, format: { type: "json_schema", schema } },
+    output_config: NO_EFFORT.has(model)
+      ? { format: { type: "json_schema", schema } }
+      : { effort, format: { type: "json_schema", schema } },
   };
   let res;
   try {

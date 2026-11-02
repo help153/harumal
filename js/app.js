@@ -153,7 +153,7 @@ sp.onSpeakFail((error, lang, voiceName) => {
 });
 
 /* ───────── 화면 골격 ───────── */
-const APP_VERSION = "2026.11.01";
+const APP_VERSION = "2026.11.02";
 const TABS = [
   { id: "today", label: "오늘", icon: ICON.today },
   { id: "level", label: "단계", icon: ICON.level },
